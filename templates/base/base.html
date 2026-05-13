@@ -113,6 +113,15 @@
                 {% endif %}
                 {% endwith %}
 
+                <ul class="navbar-nav me-3">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'manual' %}active{% endif %}"
+                           href="{% url 'manual' %}">
+                            <i class="bi bi-book"></i> Manual
+                        </a>
+                    </li>
+                </ul>
+
                 <ul class="navbar-nav ms-auto align-items-center gap-2">
                     {% with rol=user.groups.first.name %}
                     <li class="nav-item">

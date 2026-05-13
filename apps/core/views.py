@@ -68,6 +68,11 @@ def dashboard(request):
     return render(request, 'base/dashboard.html', {'rol': rol_name})
 
 
+@login_required
+def manual(request):
+    return render(request, 'core/manual.html')
+
+
 @require_POST
 def set_theme(request):
     tema = request.POST.get('tema', TEMA_DEFAULT)

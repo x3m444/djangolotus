@@ -1,0 +1,595 @@
+{% extends "base/base.html" %}
+{% block title %}Manual Utilizare — Lotus{% endblock %}
+
+{% block extra_css %}
+<style>
+  .manual-nav {
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+  }
+  .manual-nav .nav-link {
+    font-size: .85rem;
+    padding: .2rem .75rem;
+    color: var(--bs-secondary-color);
+  }
+  .manual-nav .nav-link:hover,
+  .manual-nav .nav-link.active {
+    color: var(--bs-primary);
+  }
+  .manual-nav .nav-link.sub { padding-left: 1.4rem; font-size: .8rem; }
+  .section-anchor { scroll-margin-top: 80px; }
+  .manual-content h2 { border-bottom: 1px solid var(--bs-border-color); padding-bottom: .4rem; margin-top: 2.5rem; }
+  .manual-content h3 { margin-top: 1.8rem; color: var(--bs-primary); }
+  .manual-content h4 { margin-top: 1.2rem; }
+  .manual-content table { font-size: .9rem; }
+  .manual-content pre {
+    background: var(--bs-tertiary-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: .375rem;
+    padding: 1rem;
+    font-size: .82rem;
+    overflow-x: auto;
+  }
+  .manual-content blockquote {
+    border-left: 3px solid var(--bs-primary);
+    padding: .5rem 1rem;
+    background: var(--bs-tertiary-bg);
+    border-radius: 0 .375rem .375rem 0;
+    font-size: .9rem;
+  }
+  .badge-rol { font-size: .75rem; }
+  #searchBox { max-width: 300px; }
+  .highlight-match { background: rgba(255,193,7,.35); border-radius: 2px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+
+  {# ── Sidebar navigare ── #}
+  <div class="col-lg-2 d-none d-lg-block">
+    <nav class="manual-nav" id="manualNav">
+      <div class="mb-2">
+        <input type="search" id="searchBox" class="form-control form-control-sm"
+               placeholder="Caută în manual…" oninput="searchManual(this.value)">
+      </div>
+      <div class="nav flex-column">
+        <span class="nav-link fw-semibold text-uppercase" style="font-size:.72rem;letter-spacing:.08em">Cuprins</span>
+        <a class="nav-link" href="#s1">1. Flux general</a>
+        <a class="nav-link" href="#s2">2. Autentificare și roluri</a>
+        <a class="nav-link" href="#s3">3. Admin</a>
+        <a class="nav-link sub" href="#s3-1">Planificare</a>
+        <a class="nav-link sub" href="#s3-2">Lansare producție</a>
+        <a class="nav-link sub" href="#s3-3">Firme</a>
+        <a class="nav-link sub" href="#s3-4">Nomenclator</a>
+        <a class="nav-link sub" href="#s3-5">Ingrediente & Rețete</a>
+        <a class="nav-link sub" href="#s3-6">Utilizatori</a>
+        <a class="nav-link sub" href="#s3-7">Rapoarte</a>
+        <a class="nav-link" href="#s4">4. Recepție</a>
+        <a class="nav-link sub" href="#s4-1">Comandă nouă</a>
+        <a class="nav-link sub" href="#s4-2">Lista comenzi</a>
+        <a class="nav-link" href="#s5">5. Bucătărie</a>
+        <a class="nav-link sub" href="#s5-1">Gătire</a>
+        <a class="nav-link sub" href="#s5-2">Buffer pre-ambalare</a>
+        <a class="nav-link sub" href="#s5-3">Împachetare</a>
+        <a class="nav-link sub" href="#s5-4">Stoc nevândut</a>
+        <a class="nav-link sub" href="#s5-5">Necesar ingrediente</a>
+        <a class="nav-link" href="#s6">6. Ghișeu</a>
+        <a class="nav-link sub" href="#s6-1">Bon casă</a>
+        <a class="nav-link sub" href="#s6-2">Firme</a>
+        <a class="nav-link sub" href="#s6-3">Special</a>
+        <a class="nav-link" href="#s7">7. Livrator</a>
+        <a class="nav-link" href="#s8">8. Stoc — calcul</a>
+        <a class="nav-link" href="#s9">9. Scenarii</a>
+      </div>
+    </nav>
+  </div>
+
+  {# ── Conținut manual ── #}
+  <div class="col-lg-10 manual-content" id="manualContent">
+
+    <div class="d-flex align-items-center gap-3 mb-4">
+      <div>
+        <h1 class="h3 mb-0"><i class="bi bi-book-half me-2"></i>Manual de Utilizare — Cantina Lotus</h1>
+        <small class="text-muted">Ghid complet pentru toate rolurile aplicației</small>
+      </div>
+    </div>
+
+    {# ══ 1. Flux general ══ #}
+    <h2 id="s1" class="section-anchor">1. Flux general al aplicației</h2>
+    <p>Aplicația urmărește traseul complet al unei zile de cantină, de la planificare până la livrare:</p>
+    <pre>ADMIN
+  └─ Planifică meniu săptămânal (produse per zi)
+  └─ Lansează loturi de producție (cantități: prânz / cină / eveniment)
+  └─ Lansează comenzi pentru firmele cu contract
+
+RECEPȚIE
+  └─ Preia comenzi livrare de la clienți individuali
+  └─ Selectează livrator + oră + metodă plată
+
+BUCĂTĂRIE
+  └─ Tab Gătire:   vede tot ce trebuie gătit azi și marchează ✅ Gata
+  └─ Tab Buffer:   pre-ambalează porții pentru ghișeu (masă și pachet)
+  └─ Tab Împachetare: ambalează comenzile recepției + pachete firme + loturi eveniment
+  └─ Tab Stoc Nevândut: declară ce a rămas la finalul zilei
+  └─ Tab Necesar:  lista ingredientelor necesare (export Excel)
+
+GHIȘEU
+  └─ Tab Bon Casă: servire clienți direct, din buffer
+  └─ Tab Firme:    servire nominală angajați cu contract
+  └─ Tab Special:  comenzi speciale trimise la bucătărie
+  └─ Tab Raport:   situația zilei
+
+LIVRATOR
+  └─ Vede comenzile ambalate alocate lui
+  └─ Marchează "Pe drum" și "Livrat"
+  └─ Generează aviz de însoțire (Excel)
+  └─ Raportează probleme la livrare</pre>
+
+    <h4>Statusurile unei comenzi de livrare</h4>
+    <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+      <span class="badge bg-secondary">nou</span>
+      <i class="bi bi-arrow-right text-muted"></i>
+      <span class="badge bg-warning text-dark">pregatit</span>
+      <i class="bi bi-arrow-right text-muted"></i>
+      <span class="badge bg-primary">pedrum</span>
+      <i class="bi bi-arrow-right text-muted"></i>
+      <span class="badge bg-success">livrat</span>
+      <span class="text-muted mx-2">sau</span>
+      <span class="badge bg-danger">anulat</span>
+    </div>
+
+    {# ══ 2. Autentificare ══ #}
+    <h2 id="s2" class="section-anchor">2. Autentificare și roluri</h2>
+    <p>Accesul necesită autentificare cu <strong>username + parolă</strong>. Fiecare utilizator are un singur rol; meniurile se adaptează automat.</p>
+    <div class="table-responsive">
+      <table class="table table-bordered">
+        <thead class="table-dark"><tr><th>Rol</th><th>Acces</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge bg-danger badge-rol">admin</span></td><td>Toate modulele: Admin, Recepție, Bucătărie, Ghișeu, Livrare</td></tr>
+          <tr><td><span class="badge bg-primary badge-rol">receptie</span></td><td>Creare comenzi, căutare clienți, lista comenzi</td></tr>
+          <tr><td><span class="badge bg-warning text-dark badge-rol">bucatarie</span></td><td>Gătire, buffer, împachetare, stoc, necesar ingrediente</td></tr>
+          <tr><td><span class="badge bg-success badge-rol">ghiseu</span></td><td>Bon casă, firme, special, raport</td></tr>
+          <tr><td><span class="badge bg-info text-dark badge-rol">livrator</span></td><td>Propria rută, avize de însoțire</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <blockquote>Utilizatorii cu rol <strong>livrator</strong> trebuie asociați cu un livrator din sistem de către Admin (Utilizatori → Schimbă livratorul asociat). Altfel ecranul de livrare va apărea gol.</blockquote>
+
+    {# ══ 3. Admin ══ #}
+    <h2 id="s3" class="section-anchor">3. Admin</h2>
+    <p>Modulul Admin conține: <strong>Lansare, Planificare, Firme, Nomenclator, Ingrediente, Utilizatori, Rapoarte</strong>.</p>
+
+    <h3 id="s3-1" class="section-anchor">3.1 Planificare Săptămânală</h3>
+    <p><strong>Scop:</strong> Stabilești ce produse apar în meniu pentru fiecare zi.</p>
+    <div class="table-responsive">
+      <table class="table table-sm table-bordered">
+        <thead class="table-secondary"><tr><th>Tip plan</th><th>Componente obligatorii</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Prânz</strong></td><td>Felul 1 + Felul 2 Varianta A + Felul 2 Varianta B + Salată/Accesoriu</td></tr>
+          <tr><td><strong>Cină</strong></td><td>Felul 2 principal + Salată</td></tr>
+          <tr><td><strong>Sandwich</strong></td><td>Unul sau mai mulți sandwichs</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><strong>Pași:</strong></p>
+    <ol>
+      <li>Navighezi la săptămâna dorită cu butoanele <code>← / →</code></li>
+      <li>Dai click pe ziua din calendar</li>
+      <li>Completezi câmpurile pentru Prânz, Cină sau Sandwich</li>
+      <li>Apeși <strong>Salvează</strong></li>
+    </ol>
+    <p>Tabelul săptămânal de sub formular arată planificarea pe 7 zile dintr-o privire. Butonul <strong>📥 Export Flyer Meniu</strong> generează un Excel formatat A4 pentru tipărire.</p>
+
+    <h3 id="s3-2" class="section-anchor">3.2 Lansare Producție</h3>
+    <p><strong>Scop:</strong> Spui bucătăriei câte porții să pregătească.</p>
+    <div class="table-responsive">
+      <table class="table table-sm table-bordered">
+        <thead class="table-secondary"><tr><th>Tip lot</th><th>Când se folosește</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Lot Prânz</strong></td><td>Meniu zilnic de prânz — produsele din planificarea zilei</td></tr>
+          <tr><td><strong>Lot Cină</strong></td><td>Meniu de seară</td></tr>
+          <tr><td><strong>Lot Eveniment</strong></td><td>Catering, protocol, pomeni — produse libere din nomenclator</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><strong>Cum lansezi Lot Prânz:</strong></p>
+    <ol>
+      <li>Selectezi data cu navigatorul săptămânal</li>
+      <li>Introduci cantitățile lângă fiecare produs din planul zilei (apar automat)</li>
+      <li>Apeși <strong>🚀 Lansează Lot Prânz</strong></li>
+    </ol>
+    <p><strong>Lot Eveniment:</strong> selectezi produsele din nomenclator, completezi <em>Descrierea evenimentului</em> (obligatorie), alegi tipul de ridicare (La masă / La pachet) și lansezi.</p>
+    <p><strong>Completare lot existent:</strong> butonul <strong>➕ Completează</strong> de lângă un lot adaugă produse extra la acesta.</p>
+    <p><strong>Anulare lot:</strong> butonul <strong>🗑️ Anulează</strong> — lotul nu mai apare în bucătărie și nu se ia în calculul stocului.</p>
+    <blockquote><strong>Tabelul Stoc Zilnic</strong> afișează per produs: <code>Lansat | Consumat | Rămas</code> în timp real.</blockquote>
+
+    <h3 id="s3-3" class="section-anchor">3.3 Firme cu Contract</h3>
+    <p>Modulul Firme are 4 taburi: <strong>Gestiune, Lansare, Prezență, Raport</strong>.</p>
+    <h4>Tab Gestiune</h4>
+    <div class="table-responsive">
+      <table class="table table-sm table-bordered">
+        <thead class="table-secondary"><tr><th>Tip firmă</th><th>Descriere</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Ghișeu (nominal)</strong></td><td>Angajații vin la ghișeu; servire nominală per persoană</td></tr>
+          <tr><td><strong>Ghișeu + Livrare</strong></td><td>Prânzul se livrează; cina se ridică la ghișeu</td></tr>
+          <tr><td><strong>Livrare fixă</strong></td><td>Cantitate fixă livrată zilnic</td></tr>
+          <tr><td><strong>Meniu Special</strong></td><td>Meniu construit manual, independent de planificarea zilei</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <ul>
+      <li><strong>Adaugă firmă</strong> — Nume, Tip contract, Tip firmă → Adaugă</li>
+      <li><strong>Adaugă angajat</strong> — câmpul din cardul firmei → ➕</li>
+      <li><strong>Concediu/Inactiv</strong> — butonul 🔴 → angajatul trece în Inactivi</li>
+      <li><strong>Reactivare</strong> — butonul 🟢 din secțiunea Inactivi</li>
+    </ul>
+    <blockquote>La orice modificare a angajaților activi, rezervarea zilnică se actualizează automat.</blockquote>
+    <h4>Tab Lansare</h4>
+    <p>Lansezi comanda de livrare pentru firmele cu tip Ghișeu+Livrare, Livrare fixă sau Meniu Special: selectezi firma, produsele, cantitățile, livratorl și ora.</p>
+    <h4>Tab Prezență</h4>
+    <p>Confirmați câți angajați vin azi. Rezervarea se auto-inițializează din numărul angajaților activi; poți corecta manual per firmă.</p>
+    <h4>Tab Raport</h4>
+    <p>Per firmă, per zi: angajat, produse servite, tip servire, oră. <strong>Export Excel</strong> cu câte un sheet per firmă.</p>
+
+    <h3 id="s3-4" class="section-anchor">3.4 Nomenclator</h3>
+    <p><strong>Scop:</strong> Gestionezi lista de produse disponibile în aplicație.</p>
+    <div class="table-responsive">
+      <table class="table table-sm table-bordered">
+        <thead class="table-secondary"><tr><th>Categorie</th><th>Utilizare</th></tr></thead>
+        <tbody>
+          <tr><td>🥣 felul_1</td><td>Planificare prânz/cină</td></tr>
+          <tr><td>🍖 felul_2</td><td>Planificare prânz/cină</td></tr>
+          <tr><td>🥗 salate</td><td>Planificare prânz/cină</td></tr>
+          <tr><td>🥪 sandwich</td><td>Planificare sandwich</td></tr>
+          <tr><td>✨ special</td><td>Comenzi speciale ghișeu</td></tr>
+          <tr><td>🍮 desert</td><td>Comenzi extra</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Operații: <strong>Adaugă</strong> (Nume + Categorie + Preț), <strong>Editează</strong> inline, <strong>Șterge</strong>, <strong>Export Excel</strong>.</p>
+
+    <h3 id="s3-5" class="section-anchor">3.5 Ingrediente și Rețete</h3>
+    <p>Catalogul de ingrediente conține Nume, Unitate de măsură (kg/l/buc/g/ml), Categorie.</p>
+    <p>Din Nomenclator → click pe un produs → <strong>Rețetă</strong> pentru a gestiona ingredientele per produs. Cantitățile se introduc în g sau ml și se salvează automat în kg sau l.</p>
+    <blockquote>La Lansare Producție, necesarul de ingrediente (porții × rețetă) se calculează automat și apare în <strong>Tab Necesar</strong> din Bucătărie.</blockquote>
+
+    <h3 id="s3-6" class="section-anchor">3.6 Utilizatori</h3>
+    <p>Creare utilizator: Username + Parolă + Rol + (opțional) Livrator asociat. Operații: activare/dezactivare, resetare parolă, schimbare livrator asociat.</p>
+
+    <h3 id="s3-7" class="section-anchor">3.7 Rapoarte</h3>
+    <div class="table-responsive">
+      <table class="table table-sm table-bordered">
+        <thead class="table-secondary"><tr><th>Tab</th><th>Conținut</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Comenzi</strong></td><td>Rezumat pe zile + detaliu per comandă (status, sofer, plată, produse, timestamps)</td></tr>
+          <tr><td><strong>Producție</strong></td><td>Per produs, per zi: lot intern/eveniment/firme/recepție, gătit, servit, livrat, pierderi, rămas</td></tr>
+          <tr><td><strong>Firme</strong></td><td>Per firmă: porții ghișeu/livrare, total lei, detaliu expandabil</td></tr>
+          <tr><td><strong>Livratori</strong></td><td>Per șofer: nr. comenzi livrate, total cash încasat</td></tr>
+          <tr><td><strong>Pierderi</strong></td><td>Per produs: zile cu pierderi, total pierderi/nevândut/risipă, detaliu pe zile</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    {# ══ 4. Recepție ══ #}
+    <h2 id="s4" class="section-anchor">4. Recepție</h2>
+    <blockquote>Toate comenzile din recepție sunt de tip <strong>livrare</strong> — câmpul tip comandă este setat automat.</blockquote>
+
+    <h3 id="s4-1" class="section-anchor">4.1 Comandă Nouă</h3>
+    <p><strong>1. Client</strong> — cauți din lista derulantă sau completezi Nume + Telefon + Adresă pentru un client nou (se creează automat).</p>
+    <p><strong>2. Produse</strong> — 3 taburi de selecție:</p>
+    <div class="table-responsive">
+      <table class="table table-sm table-bordered">
+        <thead class="table-secondary"><tr><th>Tab</th><th>Conținut</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Meniu Rapid</strong></td><td>Butoane V1 și V2 cu câmpuri de cantitate — cel mai rapid pentru comenzi standard</td></tr>
+          <tr><td><strong>Plan Zi</strong></td><td>Produsele planificate azi, grupate pe categorii</td></tr>
+          <tr><td><strong>Toate Produsele</strong></td><td>Întreg nomenclatorul: sandwich, speciale, orice</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Produsele adăugate apar în <strong>Coșul Comenzii</strong> (mereu vizibil la dreapta). Poți modifica sau elimina produse din coș.</p>
+    <p><strong>3. Detalii livrare:</strong></p>
+    <ul>
+      <li><strong>Livrator</strong> *(obligatoriu)* — selectezi din lista șoferilor activi</li>
+      <li><strong>Ora livrare</strong> — interval 09:00–14:00 (câte 30 min) sau ⚡ URGENT</li>
+      <li><strong>Adresă livrare</strong> — adresa exactă</li>
+      <li><strong>Metodă plată</strong> — Cash / Card / Cantină / Factură</li>
+      <li><strong>Observații</strong> — instrucțiuni speciale (etaj, interfon etc.)</li>
+    </ul>
+    <p><strong>4.</strong> Apeși <strong>✅ Plasează Comanda</strong> → comanda intră cu status <code>nou</code>.</p>
+
+    <h3 id="s4-2" class="section-anchor">4.2 Lista Comenzi</h3>
+    <p>Afișează comenzile din ziua curentă cu filtru pe status. Din detaliu comandă poți schimba statusul sau anula comanda (dacă nu e deja livrată).</p>
+
+    {# ══ 5. Bucătărie ══ #}
+    <h2 id="s5" class="section-anchor">5. Bucătărie</h2>
+
+    <h3 id="s5-1" class="section-anchor">5.1 Tab Gătire</h3>
+    <p><strong>Scop:</strong> Urmărești ce trebuie gătit și marchezi progresul.</p>
+    <p><strong>Ce apare în lista de gătire:</strong></p>
+    <ul>
+      <li><strong>Loturi lansate de admin</strong> (prânz + cină + eveniment) — gătite în bulk</li>
+      <li><strong>Produse din comenzile recepției care NU sunt în planul zilei</strong> — sandwich, speciale, orice produs din tab „Toate Produsele"</li>
+    </ul>
+    <blockquote>Produsele din planul zilei comandate prin recepție <strong>nu apar separat</strong> — sunt acoperite de lotul lansat. Bucătăria gătește o singură dată în bulk.</blockquote>
+    <p>Per produs: bară de progres, buton <strong>✅ Tot Gata</strong> (marchează toate liniile ca <code>gatit</code>), buton <strong>Reset</strong> pentru corecție.</p>
+
+    <h3 id="s5-2" class="section-anchor">5.2 Tab Buffer Pre-ambalare</h3>
+    <p><strong>Scop:</strong> Pre-ambalezi porții generice pe care ghișeul le distribuie rapid fără să construiască meniu individual.</p>
+    <div class="table-responsive">
+      <table class="table table-sm table-bordered">
+        <thead class="table-secondary"><tr><th>Cheie</th><th>Conținut</th><th>Tip</th></tr></thead>
+        <tbody>
+          <tr><td>f1, f2v1, f2v2, sal</td><td>Componente individuale (felul 1, feluri 2, salată)</td><td>Masă</td></tr>
+          <tr><td>v1, v2</td><td>Meniu complet (F1 + F2 + Salată)</td><td>Pachet</td></tr>
+          <tr><td>solo_f1, solo_f2v1, solo_f2v2</td><td>Porții solo (felul 1 sau felul 2 + salată)</td><td>Pachet</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Introduci cantitatea lângă componenta dorită → <strong>➕ Adaugă</strong>. Sistemul verifică automat că produsele sunt gătite și că nu depășești cantitatea disponibilă.</p>
+    <p>Metrici afișate: <code>Cantitate | Distribuit | Disponibil</code></p>
+
+    <h3 id="s5-3" class="section-anchor">5.3 Tab Împachetare</h3>
+    <p><strong>Scop:</strong> Ambalezi comenzile individuale gata de expediat.</p>
+    <ul>
+      <li><strong>Comenzi Recepție</strong> — apar cu indicator <code>gătite/total</code>. Când toate produsele sunt gata → <strong>📦 Ambalat</strong> → status <code>pregatit</code> → apare la livrator.</li>
+      <li><strong>Pachete Firme</strong> — angajați pentru care ghișeul a ales „La pachet" → <strong>📦 Ambalat</strong> → apare la ghișeu ca „Gata de ridicat".</li>
+      <li><strong>Loturi Eveniment</strong> — loturi admin de tip eveniment → <strong>📦 Pregătit</strong> → apare la ghișeu pentru distribuție.</li>
+    </ul>
+
+    <h3 id="s5-4" class="section-anchor">5.4 Tab Stoc Nevândut</h3>
+    <p><strong>Scop:</strong> La finalul zilei declari ce a rămas.</p>
+    <p>Câmpurile <code>Rămas</code> sunt pre-completate automat (Gătit − Servit − Livrat). Ajustezi dacă e cazul, completezi opțional <code>Pierderi</code>, apeși <strong>💾 Salvează</strong>. Declarația poate fi refăcută oricând în aceeași zi.</p>
+
+    <h3 id="s5-5" class="section-anchor">5.5 Tab Necesar Ingrediente</h3>
+    <p>Lista ingredientelor necesare calculată automat la lansarea loturilor (porții × rețetă). Bifezi <strong>✓ Primit</strong> per ingredient. <strong>Export Excel</strong> — listă formatată A4 pentru tipărire.</p>
+
+    {# ══ 6. Ghișeu ══ #}
+    <h2 id="s6" class="section-anchor">6. Ghișeu</h2>
+
+    <h3 id="s6-1" class="section-anchor">6.1 Tab Bon Casă</h3>
+    <p><strong>Scop:</strong> Clientul a plătit la casă — confirmi ce a cumpărat și scazi din buffer.</p>
+    <p>Selectezi <strong>Prânz / Cină</strong> (toggle), alegi meniurile și cantitățile (disponibilul din buffer apare lângă fiecare opțiune), selectezi tipul de ridicare (<em>La masă</em> sau <em>La pachet</em>), apeși <strong>✅ Servește</strong>. Istoricul ultimelor 30 serviri apare mai jos.</p>
+
+    <h3 id="s6-2" class="section-anchor">6.2 Tab Firme</h3>
+    <p><strong>Scop:</strong> Servești angajații firmelor cu contract zilnic, nominal per persoană.</p>
+    <p>Per angajat neservit: selectezi meniu (V1/V2/Solo), alegi tipul de ridicare:</p>
+    <ul>
+      <li><strong>🍽️ La masă</strong> — angajatul mănâncă pe loc; buffer masă scade</li>
+      <li><strong>📦 La pachet</strong> — merge la bucătărie pentru ambalare; după ambalare apare „📦 Gata" la ghișeu</li>
+    </ul>
+    <p>Din același ecran poți <strong>adăuga un angajat nou</strong> (câmpul din cardul firmei → ➕) și <strong>marca concediu</strong> (butonul 🔴 → Inactivi; 🟢 → reactivare).</p>
+
+    <h3 id="s6-3" class="section-anchor">6.3 Tab Special</h3>
+    <p><strong>Scop:</strong> Ghișeul trimite comenzi pentru produse speciale (categorie <code>special</code>) la bucătărie.</p>
+    <p>Selectezi produsele + cantitățile + tipul de ridicare → <strong>Trimite la bucătărie</strong>. Bucătăria ambalează, ghișeul vede „Gata" și marchează <strong>✅ Servit</strong>.</p>
+
+    {# ══ 7. Livrator ══ #}
+    <h2 id="s7" class="section-anchor">7. Livrator</h2>
+    <p>Ecranul filtrează automat comenzile alocate numelui tău.</p>
+    <div class="table-responsive">
+      <table class="table table-sm table-bordered">
+        <thead class="table-secondary"><tr><th>Secțiune</th><th>Status</th><th>Acțiuni</th></tr></thead>
+        <tbody>
+          <tr><td><strong>De preluat</strong></td><td><code>pregatit</code></td><td>🚚 Pe drum · 📄 Aviz Excel</td></tr>
+          <tr><td><strong>Pe drum</strong></td><td><code>pedrum</code></td><td>✅ Livrat · ⚠️ Problemă</td></tr>
+          <tr><td><strong>Livrate</strong></td><td><code>livrat</code></td><td>— (arhivă zilnică)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Bara de sus afișează: <strong>De preluat / Pe drum / Livrate / Total cash de încasat</strong>.</p>
+    <p><strong>Aviz de însoțire (Excel)</strong> — generat conform formularului legal, include Furnizor, Cumpărător, produse cu prețuri fără/cu TVA (11%), număr aviz unic, semnătură șofer.</p>
+    <p><strong>Raportare problemă</strong> — butonul ⚠️ revine comanda la <code>nou</code> și adaugă o notă în observații (ex: „absent la domiciliu").</p>
+
+    {# ══ 8. Stoc ══ #}
+    <h2 id="s8" class="section-anchor">8. Stoc — cum se calculează</h2>
+    <pre>LANSAT   = cantitățile din lotul intern (admin, prânz + cină, neAnulate)
+
+CONSUMAT = comenzi recepție livrare (clienți reali, neAnulate)
+         + serviri ghișeu bon casă
+         + serviri ghișeu firme
+
+RĂMAS = max(LANSAT − CONSUMAT, 0)</pre>
+    <blockquote>Loturile de <strong>eveniment</strong> au stoc propriu și <strong>nu intră</strong> în CONSUMAT al lotului de prânz — se gestionează separat la ghișeu.<br>
+    Comenzile recepției și servirile de la ghișeu trag din <strong>același lot lansat</strong>.<br>
+    Dacă nu s-a lansat nicio producție, stocul este 0 chiar dacă există comenzi.</blockquote>
+    <blockquote>Loturile pot fi lansate <strong>cu o zi înainte</strong> (sau oricâte zile înainte). Sistemul nu restricționează data.</blockquote>
+
+    {# ══ 9. Scenarii ══ #}
+    <h2 id="s9" class="section-anchor">9. Scenarii complete</h2>
+
+    <div class="accordion" id="accordionScenarii">
+
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#scA">
+            Scenariul A — Zi normală de prânz
+          </button>
+        </h2>
+        <div id="scA" class="accordion-collapse collapse show" data-bs-parent="#accordionScenarii">
+          <div class="accordion-body">
+<pre>08:00 ADMIN
+  → Lansare Lot Prânz: Ciorbă×40, Mușchi×25, Fasole×15, Murături×40
+
+09:00 RECEPȚIE
+  → Popescu Ion: Meniu V1 ×2, ora 12:30, Mihai, Cash 50 lei
+  → Ionescu Maria: Solo Ciorbă ×1, ora 13:00, Mihai, Card 18 lei
+
+10:00 BUCĂTĂRIE — Tab Gătire
+  → Ciorbă ×40 → ✅ Tot Gata
+  → Mușchi ×25 → ✅ Tot Gata
+  → Fasole ×15 → ✅ Tot Gata
+  → Murături ×40 → ✅ Tot Gata
+
+10:30 BUCĂTĂRIE — Tab Buffer
+  → V1 pachet ×15 · V2 pachet ×10 · f1 masă ×20
+
+10:45 BUCĂTĂRIE — Tab Împachetare
+  → Comanda Popescu Ion: 2/2 gata → 📦 Ambalat
+  → Comanda Ionescu Maria: 1/1 gata → 📦 Ambalat
+
+11:00 GHIȘEU — Tab Firme
+  → SC Exemplu SRL:
+    Ion Popescu → V1 → La masă ✓
+    Maria Ionescu → V2 → La pachet → (bucătărie ambalează) → 📦 Gata → ridicat
+
+11:30 GHIȘEU — Tab Bon Casă
+  → Clienți directi: V1 ×3 → La masă → Servește
+
+12:30 LIVRATOR (Mihai)
+  → Popescu Ion → 🚚 Pe drum → ✅ Livrat
+  → Ionescu Maria → 🚚 Pe drum → ✅ Livrat
+
+14:30 BUCĂTĂRIE — Tab Stoc Nevândut
+  → Fasole: gătit=15, servit=5, livrat=2 → declară 8 nevândut</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#scB">
+            Scenariul B — Lot Eveniment (protocol, pomană)
+          </button>
+        </h2>
+        <div id="scB" class="accordion-collapse collapse" data-bs-parent="#accordionScenarii">
+          <div class="accordion-body">
+<pre>08:00 ADMIN — Lansare → Lot Eveniment
+  → Sarmale ×50, Cozonac ×20
+  → Descriere: "Parastas Marinescu 15 mai"
+  → Tip ridicare: La pachet → Lansează
+
+10:00 BUCĂTĂRIE — Tab Gătire
+  → Sarmale ×50 → ✅ Tot Gata
+  → Cozonac ×20 → ✅ Tot Gata
+
+10:30 BUCĂTĂRIE — Tab Împachetare → Loturi Eveniment
+  → Parastas Marinescu: 2/2 gata → 📦 Pregătit
+
+11:00 GHIȘEU — Lotul apare ca pregătit
+  → Buton Distribuit → status livrat</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#scC">
+            Scenariul C — Client nou la recepție
+          </button>
+        </h2>
+        <div id="scC" class="accordion-collapse collapse" data-bs-parent="#accordionScenarii">
+          <div class="accordion-body">
+<pre>1. Recepție → Comandă Nouă
+2. Câmpul Client — nu găsești clientul în bază
+3. Completezi: Nume, Telefon, Adresă
+4. Clientul se creează automat la plasarea comenzii
+5. Adaugi produse → Coș → Plasează Comanda</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#scD">
+            Scenariul D — Comandă specială ghișeu
+          </button>
+        </h2>
+        <div id="scD" class="accordion-collapse collapse" data-bs-parent="#accordionScenarii">
+          <div class="accordion-body">
+<pre>Client cere un produs care nu e în planul zilei (ex: Plăcintă):
+
+1. Ghișeu → Tab Special
+2. Selectezi "Plăcintă" (categorie special) × 1
+3. Tip: La masă → Trimite la bucătărie
+
+4. Bucătărie → Tab Împachetare → Secțiunea Comenzi Speciale
+   → Comanda #X → 📦 Gata
+
+5. Ghișeu → Tab Special → "Gata!" apare → ✅ Servit</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#scE">
+            Scenariul E — Problemă la livrare
+          </button>
+        </h2>
+        <div id="scE" class="accordion-collapse collapse" data-bs-parent="#accordionScenarii">
+          <div class="accordion-body">
+<pre>1. Livrator → Pe drum → comanda Popescu Ion
+2. Nu răspunde nimeni → ⚠️ Problemă → „absent la domiciliu"
+3. Comanda revine la status nou cu nota adăugată
+4. Recepția vede nota și contactează clientul
+5. Dacă se rezolvă: recepția schimbă statusul înapoi la pregatit</pre>
+          </div>
+        </div>
+      </div>
+
+    </div>{# end accordion #}
+
+    <div class="mt-5 pt-3 border-top text-muted small">
+      <i class="bi bi-info-circle me-1"></i>
+      Manual integrat — DjangoLotus / Cantina Lotus · Mai 2026
+    </div>
+
+  </div>{# end col content #}
+</div>{# end row #}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function searchManual(query) {
+  const content = document.getElementById('manualContent');
+  // Elimină highlight-urile anterioare
+  content.querySelectorAll('.highlight-match').forEach(el => {
+    el.replaceWith(document.createTextNode(el.textContent));
+  });
+  content.normalize();
+  if (!query || query.length < 2) return;
+
+  const re = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+  function walk(node) {
+    if (node.nodeType === 3) {
+      const m = node.textContent.match(re);
+      if (m) {
+        const frag = document.createDocumentFragment();
+        let last = 0, text = node.textContent;
+        text.replace(re, (match, offset) => {
+          frag.appendChild(document.createTextNode(text.slice(last, offset)));
+          const span = document.createElement('span');
+          span.className = 'highlight-match';
+          span.textContent = match;
+          frag.appendChild(span);
+          last = offset + match.length;
+        });
+        frag.appendChild(document.createTextNode(text.slice(last)));
+        node.parentNode.replaceChild(frag, node);
+      }
+    } else if (node.nodeType === 1 && !['SCRIPT','STYLE','INPUT'].includes(node.tagName)) {
+      Array.from(node.childNodes).forEach(walk);
+    }
+  }
+  walk(content);
+}
+
+// Highlight nav link activ la scroll
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      const id = e.target.id;
+      document.querySelectorAll('#manualNav .nav-link').forEach(l => l.classList.remove('active'));
+      const active = document.querySelector(`#manualNav a[href="#${id}"]`);
+      if (active) active.classList.add('active');
+    }
+  });
+}, { rootMargin: '-60px 0px -70% 0px' });
+
+document.querySelectorAll('.section-anchor').forEach(el => observer.observe(el));
+</script>
+{% endblock %}
