@@ -1,0 +1,83 @@
+{% comment %}
+  Partial: formular lansare lot nou.
+  Variabile: prefix, tip_plan, label, data_sel, categorii_ev, show_descriere (opțional)
+  Pentru prânz/cină: categorii_ev = categorii_plan_pranz/cina (filtrat la plan)
+  Pentru eveniment:  categorii_ev = toate produsele din nomenclator
+{% endcomment %}
+<form id="formLot_{{ prefix }}" method="post" action="{% url 'manager:lansare_salveaza' %}">
+    {% csrf_token %}
+    <input type="hidden" name="data"     value="{{ data_sel|date:'Y-m-d' }}">
+    <input type="hidden" name="tip_plan" value="{{ tip_plan }}">
+
+    {% if show_descriere %}
+    <div class="mb-3">
+        <label class="form-label small fw-semibold">Descriere eveniment *</label>
+        <input type="text" name="descriere" class="form-control form-control-sm"
+               placeholder="ex: Parastas Ion Popescu – 50 pers." required>
+    </div>
+    <div class="mb-3">
+        <label class="form-label small fw-semibold">Mod servire</label>
+        <div class="btn-group w-100">
+            <input type="radio" class="btn-check" name="tip_ridicare"
+                   id="{{ prefix }}_tr_masa" value="la_masa" checked>
+            <label class="btn btn-outline-success btn-sm" for="{{ prefix }}_tr_masa">
+                <i class="bi bi-cup-hot"></i> Servire la masă
+            </label>
+            <input type="radio" class="btn-check" name="tip_ridicare"
+                   id="{{ prefix }}_tr_pachet" value="pachet">
+            <label class="btn btn-outline-primary btn-sm" for="{{ prefix }}_tr_pachet">
+                <i class="bi bi-box-seam"></i> Ambalat / Preluare
+            </label>
+        </div>
+    </div>
+    {% endif %}
+
+    {% for cod, eticheta, produse in categorii_ev %}
+    {% if produse %}
+    <div class="row g-2 align-items-center mb-2">
+        <div class="col-auto">
+            <span class="badge bg-secondary" style="min-width:110px">{{ eticheta }}</span>
+        </div>
+        <div class="col">
+            <select id="{{ prefix }}_sel_{{ cod }}" class="form-select form-select-sm">
+                <option value="">— selectează —</option>
+                {% for p in produse %}
+                <option value="{{ p.pk }}" data-pret="{{ p.pret_standard|default:0 }}">
+                    {{ p.nume }}{% if p.pret_standard %} ({{ p.pret_standard }} lei){% endif %}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-auto">
+            <input id="{{ prefix }}_qty_{{ cod }}" type="number"
+                   class="form-control form-control-sm text-center" style="width:65px"
+                   value="1" min="1">
+        </div>
+        <div class="col-auto">
+            <button type="button" class="btn btn-sm btn-outline-primary"
+                    onclick="window['{{ prefix }}Editor'].adauga('{{ cod }}')">
+                <i class="bi bi-plus-lg"></i>
+            </button>
+        </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+
+    <!-- Coș produse adăugate -->
+    <table id="{{ prefix }}_table" class="table table-sm table-borderless mt-2 mb-0" style="display:none">
+        <thead class="table-secondary">
+            <tr>
+                <th class="small">Produs</th>
+                <th class="text-center small" style="width:100px">Cantitate</th>
+                <th style="width:40px"></th>
+            </tr>
+        </thead>
+        <tbody id="{{ prefix }}_tbody"></tbody>
+    </table>
+
+    <div class="mt-3">
+        <button id="{{ prefix }}_btn_save" type="submit" class="btn btn-success btn-sm" disabled>
+            <i class="bi bi-send"></i> Lansează lot {{ label }}
+        </button>
+    </div>
+</form>

@@ -1,0 +1,118 @@
+{% extends 'base/base.html' %}
+{% block title %}Livrare — Lotus{% endblock %}
+
+{% block extra_css %}
+<style>
+    .comanda-card         { border-radius: .5rem; transition: box-shadow .15s; }
+    .comanda-card:hover   { box-shadow: 0 4px 16px rgba(0,0,0,.3); }
+    .card-pregatit        { border-left: 4px solid var(--bs-warning); }
+    .card-pedrum          { border-left: 4px solid var(--bs-purple); }
+    .card-livrat          { border-left: 4px solid var(--bs-success); opacity: .65; }
+    .cash-badge           { background: var(--bs-success); font-size: .85rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-bicycle text-primary"></i> Livrare</h4>
+    <div class="d-flex align-items-center gap-2">
+        {% if livrator %}
+        <span class="badge bg-primary fs-6">
+            <i class="bi bi-person-badge"></i> {{ livrator.nume }}
+        </span>
+        {% else %}
+        <span class="badge bg-danger">
+            <i class="bi bi-exclamation-triangle"></i> Fără livrator asociat
+        </span>
+        {% endif %}
+        <span class="badge bg-secondary">{{ azi|date:"d.m.Y" }}</span>
+    </div>
+</div>
+
+<!-- Sumar -->
+<div class="row g-2 mb-4">
+    <div class="col-4">
+        <div class="card text-center p-2" style="border-left:4px solid var(--bs-warning)">
+            <div class="fs-3 fw-bold text-warning">{{ sumar.de_preluat }}</div>
+            <div class="small text-muted">De preluat</div>
+        </div>
+    </div>
+    <div class="col-4">
+        <div class="card text-center p-2" style="border-left:4px solid var(--bs-purple)">
+            <div class="fs-3 fw-bold" style="color:var(--bs-purple)">{{ sumar.pe_drum }}</div>
+            <div class="small text-muted">Pe drum</div>
+        </div>
+    </div>
+    <div class="col-4">
+        <div class="card text-center p-2 border-success">
+            <div class="fs-3 fw-bold text-success">{{ sumar.cash_total|floatformat:0 }}</div>
+            <div class="small text-muted">Cash (lei)</div>
+        </div>
+    </div>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show py-2">
+        {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+{% endif %}
+
+{% if not livrator %}
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle"></i>
+    Contul tău nu este asociat unui livrator. Contactează administratorul.
+</div>
+
+{% else %}
+
+{# ── DE PRELUAT ─────────────────────────────────────────────── #}
+{% if de_preluat %}
+<h6 class="fw-semibold mb-2 text-warning">
+    <i class="bi bi-box-seam"></i> De preluat ({{ de_preluat|length }})
+</h6>
+<div class="d-flex flex-column gap-2 mb-4">
+{% for c in de_preluat %}
+{% include 'livrare/_card.html' with c=c %}
+{% endfor %}
+</div>
+{% endif %}
+
+{# ── PE DRUM ────────────────────────────────────────────────── #}
+{% if pe_drum %}
+<h6 class="fw-semibold mb-2" style="color:var(--bs-purple)">
+    <i class="bi bi-truck"></i> Pe drum ({{ pe_drum|length }})
+</h6>
+<div class="d-flex flex-column gap-2 mb-4">
+{% for c in pe_drum %}
+{% include 'livrare/_card.html' with c=c %}
+{% endfor %}
+</div>
+{% endif %}
+
+{% if not de_preluat and not pe_drum %}
+<div class="alert alert-success">
+    <i class="bi bi-check-circle"></i> Nicio comandă activă pentru azi. Tura încheiată!
+</div>
+{% endif %}
+
+{# ── LIVRATE ────────────────────────────────────────────────── #}
+{% if livrate %}
+<details class="mt-2">
+    <summary class="small text-muted" style="cursor:pointer">
+        <i class="bi bi-check-circle text-success"></i>
+        Livrate azi ({{ livrate|length }})
+    </summary>
+    <div class="d-flex flex-column gap-2 mt-2">
+    {% for c in livrate %}
+    {% include 'livrare/_card.html' with c=c %}
+    {% endfor %}
+    </div>
+</details>
+{% endif %}
+
+{% endif %}
+
+{% endblock %}

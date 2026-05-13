@@ -1,0 +1,708 @@
+{% extends 'base/base.html' %}
+{% block title %}Rapoarte — Lotus{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card { border-left: 4px solid; border-radius: .4rem; }
+    .stat-card.blue   { border-color: var(--bs-primary); }
+    .stat-card.green  { border-color: var(--bs-success); }
+    .stat-card.orange { border-color: var(--bs-warning); }
+    .stat-card.red    { border-color: var(--bs-danger);  }
+    .stat-val { font-size: 1.6rem; font-weight: 700; line-height: 1.1; }
+    .stat-lbl { font-size: .78rem; color: var(--bs-secondary-color); text-transform: uppercase; letter-spacing:.04em; }
+    .tbl-sm td, .tbl-sm th { padding: .35rem .6rem; font-size: .85rem; }
+    .badge-tip { font-size: .7rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-bar-chart-line text-primary"></i> Rapoarte</h4>
+</div>
+
+<!-- Tabs -->
+<ul class="nav nav-tabs mb-4" id="tabRapoarte">
+    <li class="nav-item">
+        <a class="nav-link {% if tab == 'comenzi' %}active{% endif %}"
+           href="?tab=comenzi&start={{ data_start|date:'Y-m-d' }}&end={{ data_end|date:'Y-m-d' }}">
+            <i class="bi bi-receipt"></i> Comenzi
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if tab == 'productie' %}active{% endif %}"
+           href="?tab=productie&data_prod={{ data_prod|date:'Y-m-d' }}">
+            <i class="bi bi-fire"></i> Producție
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if tab == 'firme' %}active{% endif %}"
+           href="?tab=firme&start={{ data_start|date:'Y-m-d' }}&end={{ data_end|date:'Y-m-d' }}">
+            <i class="bi bi-building"></i> Firme
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if tab == 'livratori' %}active{% endif %}"
+           href="?tab=livratori&start={{ data_start|date:'Y-m-d' }}&end={{ data_end|date:'Y-m-d' }}">
+            <i class="bi bi-bicycle"></i> Livratori
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if tab == 'pierderi' %}active{% endif %}"
+           href="?tab=pierderi&start={{ data_start|date:'Y-m-d' }}&end={{ data_end|date:'Y-m-d' }}">
+            <i class="bi bi-exclamation-triangle"></i> Pierderi
+        </a>
+    </li>
+</ul>
+
+<!-- ══════════════════════ TAB COMENZI ══════════════════════ -->
+{% if tab == 'comenzi' %}
+
+<form method="get" class="row g-2 align-items-end mb-4">
+    <input type="hidden" name="tab" value="comenzi">
+    <div class="col-auto">
+        <label class="form-label small mb-1">De la</label>
+        <input type="date" name="start" value="{{ data_start|date:'Y-m-d' }}"
+               class="form-control form-control-sm">
+    </div>
+    <div class="col-auto">
+        <label class="form-label small mb-1">Până la</label>
+        <input type="date" name="end" value="{{ data_end|date:'Y-m-d' }}"
+               class="form-control form-control-sm">
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-primary btn-sm" type="submit">
+            <i class="bi bi-search"></i> Filtrează
+        </button>
+    </div>
+</form>
+
+<!-- Sumar -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card stat-card blue p-3">
+            <div class="stat-val text-primary">{{ comenzi_totale.nr|default:0 }}</div>
+            <div class="stat-lbl">Comenzi active</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card stat-card green p-3">
+            <div class="stat-val text-success">{{ comenzi_totale.total|floatformat:2|default:"0.00" }}</div>
+            <div class="stat-lbl">Total LEI</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card stat-card orange p-3">
+            <div class="stat-val text-warning">{{ comenzi_rows|length }}</div>
+            <div class="stat-lbl">Zile cu activitate</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card stat-card red p-3">
+            <div class="stat-val text-danger">{{ comenzi_totale.anulate|default:0 }}</div>
+            <div class="stat-lbl">Anulate</div>
+        </div>
+    </div>
+</div>
+
+{% if comenzi_rows %}
+<div class="table-responsive">
+    <table class="table table-hover align-middle tbl-sm">
+        <thead class="table-dark">
+            <tr>
+                <th>Data</th>
+                <th class="text-center">Comenzi</th>
+                <th class="text-center">Anulate</th>
+                <th class="text-center">Cash</th>
+                <th class="text-center">Factură</th>
+                <th class="text-center">Eveniment</th>
+                <th class="text-end">Total LEI</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for r in comenzi_rows %}
+        <tr>
+            <td><strong>{{ r.data_comanda|date:"d.m.Y" }}</strong>
+                <small class="text-muted ms-1">{{ r.data_comanda|date:"l" }}</small></td>
+            <td class="text-center">{{ r.nr }}</td>
+            <td class="text-center {% if r.anulate %}text-danger{% else %}text-muted{% endif %}">{{ r.anulate }}</td>
+            <td class="text-center">{{ r.cash }}</td>
+            <td class="text-center">{{ r.factura }}</td>
+            <td class="text-center">{% if r.evenimente %}{{ r.evenimente }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+            <td class="text-end fw-semibold">{{ r.total|floatformat:2 }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot class="table-secondary fw-bold">
+            <tr>
+                <td>TOTAL</td>
+                <td class="text-center">{{ comenzi_totale.nr }}</td>
+                <td class="text-center text-danger">{{ comenzi_totale.anulate }}</td>
+                <td colspan="3"></td>
+                <td class="text-end">{{ comenzi_totale.total|floatformat:2 }}</td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-secondary">
+    <i class="bi bi-info-circle"></i> Nicio comandă în intervalul selectat.
+</div>
+{% endif %}
+
+{% if comenzi_detail %}
+<h6 class="fw-semibold mt-4 mb-3"><i class="bi bi-list-ul text-primary"></i> Detaliu comenzi</h6>
+<div class="accordion" id="accordionComenzi">
+{% regroup comenzi_detail by data_comanda as zile_comenzi %}
+{% for zi in zile_comenzi %}
+<div class="accordion-item border-0 shadow-sm mb-2">
+    <h2 class="accordion-header">
+        <button class="accordion-button {% if not forloop.first %}collapsed{% endif %} py-2" type="button"
+                data-bs-toggle="collapse" data-bs-target="#ziCom{{ forloop.counter }}">
+            <strong>{{ zi.grouper|date:"d.m.Y l" }}</strong>
+            <span class="badge bg-secondary ms-2">{{ zi.list|length }} comenzi</span>
+        </button>
+    </h2>
+    <div id="ziCom{{ forloop.counter }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}">
+        <div class="accordion-body p-2">
+        {% for cmd in zi.list %}
+        <div class="card mb-2 border-0 bg-body-secondary">
+            <div class="card-body py-2 px-3">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-1 mb-1">
+                    <div>
+                        <span class="fw-semibold">#{{ cmd.id }} — {{ cmd.nume_client }}</span>
+                        {% if cmd.tip_comanda == 'eveniment' %}
+                            <span class="badge ms-1" style="background:var(--bs-purple)">Eveniment</span>
+                        {% endif %}
+                        <span class="badge bg-secondary ms-1">{{ cmd.metoda_plata }}</span>
+                    </div>
+                    <div class="d-flex gap-2 align-items-center">
+                        {% if cmd.status == 'livrat' %}
+                            <span class="badge bg-success">Livrat</span>
+                        {% elif cmd.status == 'pedrum' %}
+                            <span class="badge bg-info text-dark">Pe drum</span>
+                        {% elif cmd.status == 'pregatit' %}
+                            <span class="badge bg-warning text-dark">Pregătit</span>
+                        {% elif cmd.status == 'anulat' %}
+                            <span class="badge bg-danger">Anulat</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ cmd.status }}</span>
+                        {% endif %}
+                        <span class="small text-muted"><i class="bi bi-bicycle"></i> {{ cmd.sofer }}</span>
+                        <span class="fw-semibold small">{{ cmd.total_plata|floatformat:2 }} LEI</span>
+                    </div>
+                </div>
+
+                <!-- Produse cu status gătit -->
+                <div class="d-flex flex-wrap gap-1 mb-2">
+                {% for l in cmd.linii %}
+                    <span class="badge {% if l.status == 'gatit' %}bg-success{% else %}bg-secondary{% endif %}">
+                        {{ l.nume_produs }} ×{{ l.cantitate }}
+                        {% if l.gatit_la %}<small>({{ l.gatit_la|time:"H:i" }})</small>{% endif %}
+                    </span>
+                {% endfor %}
+                </div>
+
+                <!-- Timeline timestamps -->
+                <div class="d-flex flex-wrap gap-3 small text-muted">
+                    {% if cmd.created_at %}
+                    <span><i class="bi bi-clock text-info"></i> Lansat: <strong class="text-info">{{ cmd.created_at|time:"H:i" }}</strong></span>
+                    {% endif %}
+                    {% if cmd.gatit_la %}
+                    <span><i class="bi bi-fire text-danger"></i> Gătit: <strong class="text-danger">{{ cmd.gatit_la|time:"H:i" }}</strong></span>
+                    {% endif %}
+                    {% if cmd.pregatit_la %}
+                    <span><i class="bi bi-box-seam text-warning"></i> Pregătit: <strong class="text-warning">{{ cmd.pregatit_la|time:"H:i" }}</strong></span>
+                    {% endif %}
+                    {% if cmd.pedrum_la %}
+                    <span><i class="bi bi-bicycle text-primary"></i> Pe drum: <strong class="text-primary">{{ cmd.pedrum_la|time:"H:i" }}</strong></span>
+                    {% endif %}
+                    {% if cmd.livrat_la %}
+                    <span><i class="bi bi-check-circle text-success"></i> Livrat: <strong class="text-success">{{ cmd.livrat_la|time:"H:i" }}</strong></span>
+                    {% endif %}
+                </div>
+                {% if cmd.observatii %}
+                <div class="text-muted small mt-1"><i class="bi bi-chat-text"></i> {{ cmd.observatii }}</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+        </div>
+    </div>
+</div>
+{% endfor %}
+</div>
+{% endif %}
+
+<!-- ══════════════════════ TAB PRODUCȚIE ══════════════════════ -->
+{% elif tab == 'productie' %}
+
+<form method="get" class="row g-2 align-items-end mb-4">
+    <input type="hidden" name="tab" value="productie">
+    <div class="col-auto">
+        <label class="form-label small mb-1">Data</label>
+        <input type="date" name="data_prod" value="{{ data_prod|date:'Y-m-d' }}"
+               class="form-control form-control-sm">
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-primary btn-sm" type="submit">
+            <i class="bi bi-search"></i> Afișează
+        </button>
+    </div>
+</form>
+
+<h6 class="fw-bold mb-3">
+    <i class="bi bi-calendar-check text-warning"></i>
+    Producție {{ data_prod|date:"d.m.Y" }}
+</h6>
+
+{% if productie_rows %}
+<div class="table-responsive">
+    <table class="table table-hover align-middle tbl-sm">
+        <thead class="table-dark">
+            <tr>
+                <th rowspan="2" class="align-middle">Produs</th>
+                <th class="text-center border-end" colspan="6">Surse lansare</th>
+                <th class="text-center border-end">Gătit la</th>
+                <th class="text-center border-end" colspan="2">Distribuit</th>
+                <th class="text-center border-end" rowspan="2" class="align-middle">Pierderi</th>
+                <th class="text-center" rowspan="2" class="align-middle">Rămas</th>
+            </tr>
+            <tr>
+                <th class="text-center">Prânz/Cină</th>
+                <th class="text-center">Eveniment</th>
+                <th class="text-center">Firme spec.</th>
+                <th class="text-center">Recepție</th>
+                <th class="text-center fw-bold">Total</th>
+                <th class="text-center border-end text-info-emphasis">Lansat la</th>
+                <th class="text-center border-end text-warning-emphasis">Gătit la</th>
+                <th class="text-center">La masă</th>
+                <th class="text-center border-end">Livrat/Pachet</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for r in productie_rows %}
+        <tr>
+            <td class="fw-semibold">{{ r.produs }}</td>
+            <td class="text-center">{% if r.lot_intern %}{{ r.lot_intern }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+            <td class="text-center">{% if r.lot_ev %}{{ r.lot_ev }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+            <td class="text-center">{% if r.lot_firme %}{{ r.lot_firme }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+            <td class="text-center">{% if r.lot_receptie %}{{ r.lot_receptie }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+            <td class="text-center fw-bold">{{ r.total_lansat }}</td>
+            <td class="text-center border-end">
+                {% if r.lansare_la %}
+                    <span class="text-info small fw-semibold">{{ r.lansare_la|time:"H:i" }}</span>
+                {% else %}
+                    <span class="text-muted">—</span>
+                {% endif %}
+            </td>
+            <td class="text-center border-end">
+                {% if r.gatit_la %}
+                    <span class="text-warning small fw-semibold">{{ r.gatit_la|time:"H:i" }}</span>
+                {% else %}
+                    <span class="text-muted">—</span>
+                {% endif %}
+            </td>
+            <td class="text-center">{% if r.la_masa %}{{ r.la_masa }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+            <td class="text-center border-end">{% if r.livrat %}{{ r.livrat }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+            <td class="text-center border-end">
+                {% if r.pierderi %}
+                    <span class="badge bg-danger">{{ r.pierderi }}</span>
+                {% else %}
+                    <span class="text-muted">—</span>
+                {% endif %}
+            </td>
+            <td class="text-center">
+                {% if r.gatit == 0 %}
+                    <span class="text-muted">—</span>
+                {% elif r.ramas > 0 %}
+                    <span class="badge bg-primary">{{ r.ramas }}</span>
+                {% elif r.ramas < 0 %}
+                    <span class="badge bg-danger">{{ r.ramas }}</span>
+                {% else %}
+                    <span class="badge bg-success">0</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot class="table-secondary">
+            <tr>
+                <td colspan="12" class="text-muted small">{{ productie_rows|length }} produs(e) distincte</td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-secondary">
+    <i class="bi bi-info-circle"></i>
+    Nicio înregistrare de producție pentru {{ data_prod|date:"d.m.Y" }}.
+</div>
+{% endif %}
+
+<!-- ══════════════════════ TAB FIRME ══════════════════════ -->
+{% elif tab == 'firme' %}
+
+<form method="get" class="row g-2 align-items-end mb-4">
+    <input type="hidden" name="tab" value="firme">
+    <div class="col-auto">
+        <label class="form-label small mb-1">De la</label>
+        <input type="date" name="start" value="{{ data_start|date:'Y-m-d' }}"
+               class="form-control form-control-sm">
+    </div>
+    <div class="col-auto">
+        <label class="form-label small mb-1">Până la</label>
+        <input type="date" name="end" value="{{ data_end|date:'Y-m-d' }}"
+               class="form-control form-control-sm">
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-primary btn-sm" type="submit">
+            <i class="bi bi-search"></i> Filtrează
+        </button>
+    </div>
+</form>
+
+{% if firme_rows %}
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card stat-card blue p-3">
+            <div class="stat-val text-primary">{{ firme_totale.firme }}</div>
+            <div class="stat-lbl">Firme active</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card stat-card green p-3">
+            <div class="stat-val text-success">{{ firme_totale.portii_masa }}</div>
+            <div class="stat-lbl">La masă</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card stat-card orange p-3">
+            <div class="stat-val text-warning">{{ firme_totale.portii_pachet }}</div>
+            <div class="stat-lbl">La pachet</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card stat-card red p-3">
+            <div class="stat-val text-danger">{{ firme_totale.total_lei|floatformat:2 }}</div>
+            <div class="stat-lbl">Total LEI</div>
+        </div>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-hover align-middle tbl-sm">
+        <thead class="table-dark">
+            <tr>
+                <th rowspan="2" class="align-middle">Firmă</th>
+                <th rowspan="2" class="align-middle">Tip</th>
+                <th class="text-center border-end" colspan="3">Serviri ghișeu</th>
+                <th class="text-center fw-bold" rowspan="2" class="align-middle">Total</th>
+                <th class="text-end" rowspan="2" class="align-middle">Total LEI</th>
+            </tr>
+            <tr>
+                <th class="text-center">Rezervate</th>
+                <th class="text-center"><i class="bi bi-cup-hot"></i> La masă</th>
+                <th class="text-center border-end"><i class="bi bi-box-seam"></i> La pachet</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for r in firme_rows %}
+        <tr>
+            <td class="fw-semibold">{{ r.nume_firma }}</td>
+            <td><span class="badge bg-secondary badge-tip">{{ r.tip_firma_label }}</span></td>
+            <td class="text-center">
+                {% if r.rezervate %}{{ r.rezervate }}{% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
+            <td class="text-center">
+                {% if r.portii_masa %}{{ r.portii_masa }}{% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
+            <td class="text-center border-end">
+                {% if r.portii_pachet %}{{ r.portii_pachet }}{% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
+            <td class="text-center border-end fw-bold">{{ r.total_portii }}</td>
+            <td class="text-end">
+                {% if r.total_lei_combined %}{{ r.total_lei_combined|floatformat:2 }}{% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot class="table-secondary fw-bold">
+            <tr>
+                <td colspan="7" class="text-muted small">{{ firme_rows|length }} firme active în perioadă</td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+
+<h6 class="fw-semibold mt-4 mb-3"><i class="bi bi-building text-success"></i> Detaliu per firmă</h6>
+<div class="accordion" id="accordionFirme">
+{% for r in firme_rows %}
+<div class="accordion-item border-0 shadow-sm mb-2">
+    <h2 class="accordion-header">
+        <button class="accordion-button collapsed py-2" type="button"
+                data-bs-toggle="collapse" data-bs-target="#firma{{ r.id }}">
+            <strong>{{ r.nume_firma }}</strong>
+            <span class="badge bg-secondary ms-2">{{ r.tip_firma_label }}</span>
+            {% if r.portii_ghiseu %}<span class="badge bg-success ms-1">{{ r.portii_ghiseu }} meniuri ghișeu</span>{% endif %}
+            {% if r.portii_livrare %}<span class="badge bg-primary ms-1">{{ r.portii_livrare }} meniuri livrate</span>{% endif %}
+            {% if r.comenzi_livrare %}<span class="badge bg-secondary ms-1">{{ r.comenzi_livrare }} comenzi</span>{% endif %}
+        </button>
+    </h2>
+    <div id="firma{{ r.id }}" class="accordion-collapse collapse">
+        <div class="accordion-body p-2">
+
+        {% if r.detail.ghiseu %}
+        <p class="small fw-semibold mb-1 text-success"><i class="bi bi-shop"></i> Serviri ghișeu</p>
+        <table class="table table-sm tbl-sm mb-3">
+            <thead><tr>
+                <th>Data</th><th>Ora</th><th>Angajat</th><th>Produse</th><th>Status</th>
+            </tr></thead>
+            <tbody>
+            {% for s in r.detail.ghiseu %}
+            <tr>
+                <td>{{ s.data_servire|date:"d.m" }}</td>
+                <td>{{ s.ora_servire|time:"H:i" }}</td>
+                <td>{{ s.angajat }}</td>
+                <td class="small text-muted">{{ s.produse }}</td>
+                <td>
+                    {% if s.tip_ridicare == 'la_masa' %}
+                        <span class="badge bg-success">La masă</span>
+                    {% elif s.status_pachet == 'ridicat' %}
+                        <span class="badge bg-success">Ridicat</span>
+                    {% elif s.status_pachet == 'ambalat' %}
+                        <span class="badge bg-warning text-dark">Ambalat</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Pachet</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        {% if r.detail.livrare %}
+        <p class="small fw-semibold mb-1 text-primary"><i class="bi bi-bicycle"></i> Comenzi livrare</p>
+        {% for cmd in r.detail.livrare %}
+        <div class="card mb-2 border-0 bg-body-secondary">
+            <div class="card-body py-2 px-3">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-1 mb-1">
+                    <span class="fw-semibold">#{{ cmd.id }} — {{ cmd.data_comanda|date:"d.m" }}</span>
+                    <div class="d-flex gap-2 align-items-center">
+                        {% if cmd.status == 'livrat' %}<span class="badge bg-success">Livrat</span>
+                        {% elif cmd.status == 'pedrum' %}<span class="badge bg-info text-dark">Pe drum</span>
+                        {% elif cmd.status == 'pregatit' %}<span class="badge bg-warning text-dark">Pregătit</span>
+                        {% else %}<span class="badge bg-secondary">{{ cmd.status }}</span>{% endif %}
+                        <span class="small text-muted"><i class="bi bi-bicycle"></i> {{ cmd.sofer }}</span>
+                        <span class="fw-semibold small">{{ cmd.total_plata|floatformat:2 }} LEI</span>
+                    </div>
+                </div>
+                <div class="text-muted small mb-1">{{ cmd.produse }}</div>
+                <div class="d-flex flex-wrap gap-3 small text-muted">
+                    {% if cmd.created_at %}<span><i class="bi bi-clock text-info"></i> Lansat: <strong class="text-info">{{ cmd.created_at|time:"H:i" }}</strong></span>{% endif %}
+                    {% if cmd.gatit_la %}<span><i class="bi bi-fire text-danger"></i> Gătit: <strong class="text-danger">{{ cmd.gatit_la|time:"H:i" }}</strong></span>{% endif %}
+                    {% if cmd.pregatit_la %}<span><i class="bi bi-box-seam text-warning"></i> Pregătit: <strong class="text-warning">{{ cmd.pregatit_la|time:"H:i" }}</strong></span>{% endif %}
+                    {% if cmd.pedrum_la %}<span><i class="bi bi-bicycle text-primary"></i> Pe drum: <strong class="text-primary">{{ cmd.pedrum_la|time:"H:i" }}</strong></span>{% endif %}
+                    {% if cmd.livrat_la %}<span><i class="bi bi-check-circle text-success"></i> Livrat: <strong class="text-success">{{ cmd.livrat_la|time:"H:i" }}</strong></span>{% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        </div>
+    </div>
+</div>
+{% endfor %}
+</div>
+
+{% else %}
+<div class="alert alert-secondary">
+    <i class="bi bi-info-circle"></i> Nicio activitate pentru firme în intervalul selectat.
+</div>
+{% endif %}
+
+<!-- ══════════════════════ TAB LIVRATORI ══════════════════════ -->
+{% elif tab == 'livratori' %}
+
+<form method="get" class="row g-2 align-items-end mb-4">
+    <input type="hidden" name="tab" value="livratori">
+    <div class="col-auto">
+        <label class="form-label small mb-1">De la</label>
+        <input type="date" name="start" value="{{ data_start|date:'Y-m-d' }}"
+               class="form-control form-control-sm">
+    </div>
+    <div class="col-auto">
+        <label class="form-label small mb-1">Până la</label>
+        <input type="date" name="end" value="{{ data_end|date:'Y-m-d' }}"
+               class="form-control form-control-sm">
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-primary btn-sm" type="submit">
+            <i class="bi bi-search"></i> Filtrează
+        </button>
+    </div>
+</form>
+
+{% if livratori_rows %}
+<div class="row g-3 mb-4">
+    {% for r in livratori_rows %}
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card stat-card blue p-3 h-100">
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <i class="bi bi-person-badge fs-4 text-primary"></i>
+                <span class="fw-semibold">{{ r.sofer }}</span>
+            </div>
+            <div class="d-flex justify-content-between">
+                <div>
+                    <div class="stat-val text-primary">{{ r.comenzi }}</div>
+                    <div class="stat-lbl">livrări</div>
+                </div>
+                <div class="text-end">
+                    <div class="stat-val text-success">{{ r.total|floatformat:2 }}</div>
+                    <div class="stat-lbl">LEI total</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+<div class="table-responsive">
+    <table class="table table-hover align-middle tbl-sm">
+        <thead class="table-dark">
+            <tr>
+                <th>Șofer</th>
+                <th class="text-center">Livrări</th>
+                <th class="text-end">Total LEI</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for r in livratori_rows %}
+        <tr>
+            <td><i class="bi bi-bicycle text-primary me-1"></i>{{ r.sofer }}</td>
+            <td class="text-center">{{ r.comenzi }}</td>
+            <td class="text-end fw-semibold">{{ r.total|floatformat:2 }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-secondary">
+    <i class="bi bi-info-circle"></i> Nicio livrare înregistrată în intervalul selectat.
+</div>
+{% endif %}
+
+
+{# ══════════════════════ TAB PIERDERI ══════════════════════ #}
+{% elif tab == 'pierderi' %}
+
+<form method="get" class="row g-2 align-items-end mb-4">
+    <input type="hidden" name="tab" value="pierderi">
+    <div class="col-auto">
+        <label class="form-label small mb-1">De la</label>
+        <input type="date" name="start" value="{{ data_start|date:'Y-m-d' }}"
+               class="form-control form-control-sm">
+    </div>
+    <div class="col-auto">
+        <label class="form-label small mb-1">Până la</label>
+        <input type="date" name="end" value="{{ data_end|date:'Y-m-d' }}"
+               class="form-control form-control-sm">
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-primary btn-sm" type="submit">
+            <i class="bi bi-search"></i> Filtrează
+        </button>
+    </div>
+</form>
+
+{% if pierderi_rows %}
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card stat-card blue p-3">
+            <div class="stat-val text-primary">{{ pierderi_totale.produse }}</div>
+            <div class="stat-lbl">Produse afectate</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card stat-card red p-3">
+            <div class="stat-val text-danger">{{ pierderi_totale.total_pierderi }}</div>
+            <div class="stat-lbl">Porții deteriorate</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card stat-card orange p-3">
+            <div class="stat-val text-primary">{{ pierderi_totale.total_nevandut }}</div>
+            <div class="stat-lbl">Porții nevândute</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card stat-card red p-3">
+            <div class="stat-val text-danger">{{ pierderi_totale.total_risipa }}</div>
+            <div class="stat-lbl">Total risipă</div>
+        </div>
+    </div>
+</div>
+
+<div class="accordion" id="accordionPierderi">
+{% for r in pierderi_rows %}
+<div class="accordion-item border-0 shadow-sm mb-2">
+    <h2 class="accordion-header">
+        <button class="accordion-button collapsed py-2" type="button"
+                data-bs-toggle="collapse" data-bs-target="#prod{{ forloop.counter }}">
+            <strong>{{ r.nume_produs }}</strong>
+            <span class="ms-auto d-flex gap-2 me-3">
+                {% if r.total_pierderi %}
+                <span class="badge bg-danger">{{ r.total_pierderi }} deteriorate</span>
+                {% endif %}
+                {% if r.total_nevandut %}
+                <span class="badge bg-secondary">{{ r.total_nevandut }} nevândute</span>
+                {% endif %}
+                <span class="badge bg-primary">{{ r.zile }} zile</span>
+            </span>
+        </button>
+    </h2>
+    <div id="prod{{ forloop.counter }}" class="accordion-collapse collapse">
+        <div class="accordion-body p-2">
+            <table class="table table-sm tbl-sm mb-0">
+                <thead><tr>
+                    <th>Data</th>
+                    <th class="text-center">Deteriorate</th>
+                    <th class="text-center">Nevândute</th>
+                    <th class="text-muted small">Declarate la</th>
+                </tr></thead>
+                <tbody>
+                {% for zi in r.detaliu %}
+                <tr>
+                    <td>{{ zi.data|date:"d.m.Y" }}</td>
+                    <td class="text-center">
+                        {% if zi.pierderi %}
+                            <span class="badge bg-danger">{{ zi.pierderi }}</span>
+                        {% else %}<span class="text-muted">—</span>{% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if zi.cantitate %}
+                            <span class="badge bg-secondary">{{ zi.cantitate }}</span>
+                        {% else %}<span class="text-muted">—</span>{% endif %}
+                    </td>
+                    <td class="text-muted small">{{ zi.declarat_la|time:"H:i" }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endfor %}
+</div>
+
+{% else %}
+<div class="alert alert-secondary">
+    <i class="bi bi-check-circle"></i> Nicio pierdere sau risipă înregistrată în intervalul selectat.
+</div>
+{% endif %}
+
+{% endif %}
+
+{% endblock %}

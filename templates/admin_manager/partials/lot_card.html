@@ -1,0 +1,120 @@
+{% comment %}
+  Partial: card lot existent.
+  Variabile: lot (Comanda), tip (str), data_sel, categorii_ev
+  Pentru prânz/cină: categorii_ev = filtrat la plan
+  Pentru eveniment:  categorii_ev = tot nomenclatorul
+{% endcomment %}
+<div class="card border-0 shadow-sm lot-card mb-3">
+    <div class="card-body py-2">
+
+        <!-- Header lot -->
+        <div class="d-flex justify-content-between align-items-start">
+            <div class="lot-header">
+                <span class="badge bg-success me-1">✅ Lansat</span>
+                <span class="text-muted">
+                    #{{ lot.id }}
+                    {% if lot.ora_livrare_estimata %}— {{ lot.ora_livrare_estimata|time:'H:i' }}{% endif %}
+                    {% if lot.total_plata %}— {{ lot.total_plata }} lei{% endif %}
+                </span>
+                {% if lot.observatii %}
+                <span class="text-muted ms-1">— {{ lot.observatii }}</span>
+                {% endif %}
+            </div>
+            <div class="d-flex gap-1">
+                <button class="btn btn-sm btn-outline-secondary py-0 px-2"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#collapseAdd{{ lot.pk }}"
+                        aria-expanded="false">
+                    <i class="bi bi-plus-circle"></i> Completează
+                </button>
+                <form method="post" action="{% url 'manager:lansare_sterge' lot.pk %}"
+                      onsubmit="return confirm('Anulezi acest lot?')">
+                    {% csrf_token %}
+                    <input type="hidden" name="data" value="{{ data_sel|date:'Y-m-d' }}">
+                    <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">
+                        <i class="bi bi-trash3"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Linii lot -->
+        {% if lot.linii.all %}
+        <ul class="mb-2 mt-2 small ps-3">
+            {% for linie in lot.linii.all %}
+            <li>{{ linie.cantitate }} × {{ linie.nume_produs }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        <!-- Formular completare lot (colaps) -->
+        <div class="collapse mt-2" id="collapseAdd{{ lot.pk }}">
+            <div class="border rounded p-2 bg-dark bg-opacity-25">
+                <p class="small fw-semibold mb-2">Adaugă produse la lot #{{ lot.id }}</p>
+
+                <form id="formAdd_{{ lot.pk }}" method="post"
+                      action="{% url 'manager:lansare_adauga' lot.pk %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="data" value="{{ data_sel|date:'Y-m-d' }}">
+
+                    {% for cod, eticheta, produse in categorii_ev %}
+                    {% if produse %}
+                    <div class="row g-2 align-items-center mb-2">
+                        <div class="col-auto">
+                            <span class="badge bg-secondary" style="min-width:110px">{{ eticheta }}</span>
+                        </div>
+                        <div class="col">
+                            <select id="lot{{ lot.pk }}_sel_{{ cod }}" class="form-select form-select-sm">
+                                <option value="">— selectează —</option>
+                                {% for p in produse %}
+                                <option value="{{ p.pk }}" data-pret="{{ p.pret_standard|default:0 }}">
+                                    {{ p.nume }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-auto">
+                            <input id="lot{{ lot.pk }}_qty_{{ cod }}" type="number"
+                                   class="form-control form-control-sm text-center" style="width:65px"
+                                   value="1" min="1">
+                        </div>
+                        <div class="col-auto">
+                            <button type="button" class="btn btn-sm btn-outline-primary"
+                                    onclick="window['lot{{ lot.pk }}Editor'].adauga('{{ cod }}')">
+                                <i class="bi bi-plus-lg"></i>
+                            </button>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+
+                    <!-- Coș produse adăugate -->
+                    <table id="lot{{ lot.pk }}_table" class="table table-sm table-borderless mt-2 mb-0" style="display:none">
+                        <thead class="table-secondary">
+                            <tr>
+                                <th class="small">Produs</th>
+                                <th class="text-center small" style="width:100px">Cantitate</th>
+                                <th style="width:40px"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="lot{{ lot.pk }}_tbody"></tbody>
+                    </table>
+
+                    <div class="mt-2">
+                        <button id="lot{{ lot.pk }}_btn_save" type="submit"
+                                class="btn btn-success btn-sm" disabled>
+                            <i class="bi bi-plus-square"></i> Adaugă la lot
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#collapseAdd{{ lot.pk }}">
+                            Anulează
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+</div>

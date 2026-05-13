@@ -1,0 +1,42 @@
+{% extends 'base/base.html' %}
+{% block title %}Dashboard — Lotus{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-md-8">
+        <h5 class="mb-4 text-muted">Selectează modulul</h5>
+        <div class="row g-3">
+            <div class="col-6 col-md-4">
+                <a href="{% url 'receptie:index' %}" class="card text-decoration-none h-100 text-center p-3 border-0 shadow-sm">
+                    <div class="fs-1">📋</div>
+                    <div class="fw-semibold mt-2">Recepție</div>
+                </a>
+            </div>
+            <div class="col-6 col-md-4">
+                <a href="{% url 'bucatarie:index' %}" class="card text-decoration-none h-100 text-center p-3 border-0 shadow-sm">
+                    <div class="fs-1">🍳</div>
+                    <div class="fw-semibold mt-2">Bucătărie</div>
+                </a>
+            </div>
+            <div class="col-6 col-md-4">
+                <a href="{% url 'ghiseu:index' %}" class="card text-decoration-none h-100 text-center p-3 border-0 shadow-sm">
+                    <div class="fs-1">🏪</div>
+                    <div class="fw-semibold mt-2">Ghișeu</div>
+                </a>
+            </div>
+            <div class="col-6 col-md-4">
+                <a href="{% url 'livrare:index' %}" class="card text-decoration-none h-100 text-center p-3 border-0 shadow-sm">
+                    <div class="fs-1">🚚</div>
+                    <div class="fw-semibold mt-2">Livrare</div>
+                </a>
+            </div>
+            <div class="col-6 col-md-4">
+                <a href="{% url 'manager:index' %}" class="card text-decoration-none h-100 text-center p-3 border-0 shadow-sm">
+                    <div class="fs-1">⚙️</div>
+                    <div class="fw-semibold mt-2">Manager</div>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

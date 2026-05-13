@@ -1,0 +1,242 @@
+{% extends 'base/base.html' %}
+{% block title %}Planificare Săptămânală — Lotus{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+    <div class="d-flex align-items-center gap-2">
+        <span class="fs-4">📅</span>
+        <h4 class="mb-0">Planificare Săptămânală</h4>
+    </div>
+    <a href="{% url 'manager:planificare_export' %}?data={{ data_sel|date:'Y-m-d' }}"
+       class="btn btn-success btn-sm">
+        <i class="bi bi-file-earmark-excel"></i> Export Excel
+    </a>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show py-2">
+        {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+{% endif %}
+
+<!-- Navigare săptămână -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body py-2">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <a href="?data={{ saptamana_prev }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-chevron-left"></i> Anterioară
+            </a>
+            <div class="d-flex gap-1 flex-wrap justify-content-center">
+                {% for zi, nume_zi in zile %}
+                <a href="?data={{ zi|date:'Y-m-d' }}"
+                   class="btn btn-sm {% if zi == data_sel %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                    <span class="d-none d-md-inline">{{ nume_zi }} </span>{{ zi|date:'d.m' }}
+                </a>
+                {% endfor %}
+            </div>
+            <a href="?data={{ saptamana_next }}" class="btn btn-outline-secondary btn-sm">
+                Următoare <i class="bi bi-chevron-right"></i>
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+
+    <!-- Formulare zi selectată -->
+    <div class="col-12 col-xl-4">
+        <h6 class="text-muted fw-semibold mb-3">
+            Planifică: <span class="text-white">{{ zi_nume }}, {{ data_sel|date:'d.m.Y' }}</span>
+        </h6>
+
+        <!-- PRÂNZ -->
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header fw-semibold">🥣 Prânz</div>
+            <div class="card-body">
+                {% if zi_plan.pranz %}
+                <p class="small text-success mb-2">
+                    ✅ {% for p in zi_plan.pranz %}{{ p.nume }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                </p>
+                {% endif %}
+                <form method="post" action="{% url 'manager:planificare_salveaza' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="data" value="{{ data_sel|date:'Y-m-d' }}">
+                    <input type="hidden" name="tip_plan" value="pranz">
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label small mb-1">Felul 1</label>
+                            <select name="f1" class="form-select form-select-sm" required>
+                                <option value="">— Alege —</option>
+                                {% for p in felul_1 %}
+                                <option value="{{ p.pk }}"
+                                    {% for ep in zi_plan.pranz %}{% if ep.pk == p.pk %}selected{% endif %}{% endfor %}>
+                                    {{ p.nume }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small mb-1">Salată / Acc.</label>
+                            <select name="acc" class="form-select form-select-sm" required>
+                                <option value="">— Alege —</option>
+                                {% for p in salate %}
+                                <option value="{{ p.pk }}"
+                                    {% for ep in zi_plan.pranz %}{% if ep.pk == p.pk %}selected{% endif %}{% endfor %}>
+                                    {{ p.nume }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small mb-1">Felul 2 (A)</label>
+                            <select name="f2a" class="form-select form-select-sm" required>
+                                <option value="">— Alege —</option>
+                                {% for p in felul_2 %}
+                                <option value="{{ p.pk }}"
+                                    {% for ep in zi_plan.pranz %}{% if ep.pk == p.pk %}selected{% endif %}{% endfor %}>
+                                    {{ p.nume }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small mb-1">Felul 2 (B)</label>
+                            <select name="f2b" class="form-select form-select-sm" required>
+                                <option value="">— Alege —</option>
+                                {% for p in felul_2 %}
+                                <option value="{{ p.pk }}"
+                                    {% for ep in zi_plan.pranz %}{% if ep.pk == p.pk %}selected{% endif %}{% endfor %}>
+                                    {{ p.nume }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm w-100 mt-3">
+                        <i class="bi bi-save"></i> Salvează Prânz
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- CINĂ -->
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header fw-semibold">🌙 Cină</div>
+            <div class="card-body">
+                {% if zi_plan.cina %}
+                <p class="small text-success mb-2">
+                    ✅ {% for p in zi_plan.cina %}{{ p.nume }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                </p>
+                {% endif %}
+                <form method="post" action="{% url 'manager:planificare_salveaza' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="data" value="{{ data_sel|date:'Y-m-d' }}">
+                    <input type="hidden" name="tip_plan" value="cina">
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label small mb-1">Felul Principal</label>
+                            <select name="f2c" class="form-select form-select-sm" required>
+                                <option value="">— Alege —</option>
+                                {% for p in felul_2 %}
+                                <option value="{{ p.pk }}"
+                                    {% for ep in zi_plan.cina %}{% if ep.pk == p.pk %}selected{% endif %}{% endfor %}>
+                                    {{ p.nume }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small mb-1">Salată</label>
+                            <select name="salc" class="form-select form-select-sm" required>
+                                <option value="">— Alege —</option>
+                                {% for p in salate %}
+                                <option value="{{ p.pk }}"
+                                    {% for ep in zi_plan.cina %}{% if ep.pk == p.pk %}selected{% endif %}{% endfor %}>
+                                    {{ p.nume }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm w-100 mt-3">
+                        <i class="bi bi-save"></i> Salvează Cină
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- SANDWICH -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-header fw-semibold">🥪 Sandwich-uri</div>
+            <div class="card-body">
+                {% if zi_plan.sandwich %}
+                <p class="small text-success mb-2">
+                    ✅ {% for p in zi_plan.sandwich %}{{ p.nume }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                </p>
+                {% endif %}
+                <form method="post" action="{% url 'manager:planificare_salveaza' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="data" value="{{ data_sel|date:'Y-m-d' }}">
+                    <input type="hidden" name="tip_plan" value="sandwich">
+                    {% for p in sandwich %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="sw"
+                               value="{{ p.pk }}" id="sw{{ p.pk }}"
+                               {% for ep in zi_plan.sandwich %}{% if ep.pk == p.pk %}checked{% endif %}{% endfor %}>
+                        <label class="form-check-label small" for="sw{{ p.pk }}">{{ p.nume }}</label>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted small">Niciun sandwich în nomenclator.</p>
+                    {% endfor %}
+                    {% if sandwich %}
+                    <button type="submit" class="btn btn-primary btn-sm w-100 mt-3">
+                        <i class="bi bi-save"></i> Salvează Sandwich-uri
+                    </button>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabel săptămânal -->
+    <div class="col-12 col-xl-8">
+        <h6 class="text-muted fw-semibold mb-3">Vedere săptămânală</h6>
+        <div class="table-responsive">
+            <table class="table table-bordered table-sm small align-middle">
+                <thead>
+                    <tr>
+                        <th style="width:100px">Flux</th>
+                        {% for zi, nume_zi in zile %}
+                        <th class="text-center {% if zi == data_sel %}table-active{% endif %}">
+                            {{ nume_zi }}<br>
+                            <small class="opacity-75">{{ zi|date:'d.m' }}</small>
+                        </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for rand in tabel %}
+                    <tr>
+                        <td class="fw-semibold">{{ rand.label }}</td>
+                        {% for celula in rand.zile %}
+                        <td class="{% if celula.selectat %}table-active{% endif %}" style="min-width:120px; vertical-align:top">
+                            {% if celula.produse %}
+                                {% for p in celula.produse %}
+                                <div class="text-truncate" style="max-width:130px" title="{{ p.nume }}">• {{ p.nume }}</div>
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

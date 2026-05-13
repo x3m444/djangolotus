@@ -1,0 +1,117 @@
+{% extends 'base/base.html' %}
+{% block title %}Comandă #{{ comanda.pk }} — Lotus{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <a href="{% url 'receptie:index' %}" class="btn btn-sm btn-outline-secondary me-2">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <span class="fw-bold fs-5">Comandă #{{ comanda.pk }}</span>
+    </div>
+    <span class="badge fs-6
+        {% if comanda.status == 'nou' %}bg-primary
+        {% elif comanda.status == 'pregatit' %}bg-warning text-dark
+        {% elif comanda.status == 'pedrum' %}bg-purple
+        {% elif comanda.status == 'livrat' %}bg-success
+        {% else %}bg-secondary{% endif %}">
+        {{ comanda.get_status_display }}
+    </span>
+</div>
+
+<div class="row g-3">
+
+    <!-- Detalii comandă -->
+    <div class="col-12 col-md-6">
+        <div class="card p-3 h-100">
+            <h6 class="fw-semibold mb-3"><i class="bi bi-info-circle text-primary"></i> Detalii</h6>
+            <table class="table table-sm table-borderless mb-0 small">
+                <tr><th>Client</th><td>{{ comanda.client.nume_client }}</td></tr>
+                <tr><th>Telefon</th><td>
+                    <a href="tel:{{ comanda.client.telefon }}">{{ comanda.client.telefon }}</a>
+                </td></tr>
+                <tr><th>Data</th><td>{{ comanda.data_comanda|date:"d.m.Y" }}</td></tr>
+                <tr><th>Tip</th><td>{{ comanda.get_tip_comanda_display }}</td></tr>
+                <tr><th>Oră livrare</th><td>{{ comanda.ora_livrare_estimata|time:"H:i"|default:"—" }}</td></tr>
+                <tr><th>Plată</th><td>{{ comanda.get_metoda_plata_display|default:"—" }}</td></tr>
+                <tr><th>Total</th><td class="fw-bold">{{ comanda.total_plata|floatformat:2|default:"—" }} LEI</td></tr>
+                {% if comanda.sofer %}
+                <tr><th>Șofer</th><td>{{ comanda.sofer }}</td></tr>
+                {% endif %}
+                {% if comanda.observatii %}
+                <tr><th>Observații</th><td>{{ comanda.observatii }}</td></tr>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+
+    <!-- Produse -->
+    <div class="col-12 col-md-6">
+        <div class="card p-3 h-100">
+            <h6 class="fw-semibold mb-3"><i class="bi bi-basket text-success"></i> Produse</h6>
+            {% if comanda.linii.all %}
+            <table class="table table-sm align-middle small mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Produs</th>
+                        <th class="text-center">Cant.</th>
+                        <th class="text-end">Preț</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for l in comanda.linii.all %}
+                <tr>
+                    <td>{{ l.nume_produs }}</td>
+                    <td class="text-center">{{ l.cantitate }}</td>
+                    <td class="text-end">
+                        {% if l.pret_unitar %}{{ l.pret_unitar|floatformat:2 }}{% else %}—{% endif %}
+                    </td>
+                    <td>
+                        <span class="badge {% if l.status == 'gatit' %}bg-success{% else %}bg-secondary{% endif %}">
+                            {{ l.status }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="text-muted small">Niciun produs.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Actualizare status -->
+    {% if comanda.status != 'livrat' and comanda.status != 'anulat' %}
+    <div class="col-12">
+        <div class="card p-3">
+            <h6 class="fw-semibold mb-2"><i class="bi bi-arrow-repeat text-warning"></i> Actualizare status</h6>
+            <div class="d-flex gap-2 flex-wrap">
+                {% for cod, label in comanda.STATUS_CHOICES %}
+                {% if cod != comanda.status and cod != 'anulat' %}
+                <form method="post" action="{% url 'receptie:comanda_status' comanda.pk %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="status" value="{{ cod }}">
+                    <button type="submit" class="btn btn-sm btn-outline-primary">
+                        → {{ label }}
+                    </button>
+                </form>
+                {% endif %}
+                {% endfor %}
+                <form method="post" action="{% url 'receptie:comanda_anuleaza' comanda.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                            onclick="return confirm('Anulezi comanda #{{ comanda.pk }}?')">
+                        <i class="bi bi-x-circle"></i> Anulează
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+{% endblock %}

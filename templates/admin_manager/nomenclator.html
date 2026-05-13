@@ -1,0 +1,105 @@
+{% extends 'base/base.html' %}
+{% block title %}Nomenclator Produse — Lotus{% endblock %}
+
+{% block extra_css %}
+<style>
+.cat-chevron { transition: transform .2s ease; }
+[aria-expanded="true"] .cat-chevron { transform: rotate(180deg); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <div class="d-flex align-items-center gap-2">
+        <span class="fs-4">⚙️</span>
+        <h4 class="mb-0">Nomenclator Produse</h4>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'manager:produs_export' %}" class="btn btn-success btn-sm">
+            <i class="bi bi-file-earmark-excel"></i> Export Excel
+        </a>
+        <button class="btn btn-primary btn-sm" data-bs-toggle="collapse" data-bs-target="#formAdd">
+            <i class="bi bi-plus-lg"></i> Produs Nou
+        </button>
+    </div>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show py-2" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+{% endif %}
+
+<!-- Form adaugare -->
+<div class="collapse mb-4" id="formAdd">
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <h6 class="fw-bold mb-3">➕ Adaugă Produs Nou</h6>
+            <form method="post" action="{% url 'manager:produs_add' %}">
+                {% csrf_token %}
+                <div class="row g-3 align-items-end">
+                    <div class="col-12 col-md-5">
+                        <label class="form-label small fw-semibold">Denumire</label>
+                        <input type="text" name="nume" class="form-control"
+                               placeholder="ex: Ciorbă de văduvă..." required>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold">Categorie</label>
+                        <select name="categorie" class="form-select" required>
+                            <option value="">— Alege —</option>
+                            {% for cod, label in categorii %}
+                            <option value="{{ cod }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label small fw-semibold">Preț (RON)</label>
+                        <input type="number" name="pret_standard" class="form-control"
+                               min="0" step="0.5" placeholder="0.00">
+                    </div>
+                    <div class="col-12 col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">Salvează</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Tabel produse grupat pe categorii -->
+{% for cod, label, produse in grouped %}
+{% if produse %}
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-header d-flex align-items-center justify-content-between py-2"
+         style="cursor:pointer" data-bs-toggle="collapse" data-bs-target="#cat-{{ cod }}" aria-expanded="false">
+        <span class="fw-semibold">{{ label }} <span class="badge bg-secondary ms-1">{{ produse|length }}</span></span>
+        <i class="bi bi-chevron-down text-muted cat-chevron"></i>
+    </div>
+    <div class="collapse" id="cat-{{ cod }}">
+        <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0 align-middle">
+                <thead>
+                    <tr>
+                        <th style="width:50px">#</th>
+                        <th>Denumire</th>
+                        <th style="width:160px">Categorie</th>
+                        <th style="width:120px">Preț (RON)</th>
+                        <th style="width:100px"></th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-{{ cod }}">
+                    {% for produs in produse %}
+                    {% include 'admin_manager/partials/produs_row.html' %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+
+{% endblock %}

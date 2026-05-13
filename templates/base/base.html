@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ro" data-bs-theme="{{ tema_tip }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Lotus{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.0/dist/{{ tema_curenta }}/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .navbar-brand { font-weight: 700; letter-spacing: 1px; }
+        .rol-badge { font-size: 0.72rem; }
+        .theme-dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    {% if user.is_authenticated %}
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{% url 'dashboard' %}">🍽 Lotus</a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="mainNav">
+                {% with rol=user.groups.first.name %}
+                {% if rol == 'admin' %}
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'lansare' %}active{% endif %}"
+                           href="{% url 'manager:lansare' %}">
+                            <i class="bi bi-rocket-takeoff"></i> Lansare
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'firme' %}active{% endif %}"
+                           href="{% url 'manager:firme' %}">
+                            <i class="bi bi-building"></i> Firme
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'rapoarte' %}active{% endif %}"
+                           href="{% url 'manager:rapoarte' %}">
+                            <i class="bi bi-bar-chart-line"></i> Rapoarte
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'planificare' %}active{% endif %}"
+                           href="{% url 'manager:planificare' %}">
+                            <i class="bi bi-calendar-week"></i> Planificare
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.app_name == 'manager' and request.resolver_match.url_name == 'nomenclator' %}active{% endif %}"
+                           href="{% url 'manager:nomenclator' %}">
+                            <i class="bi bi-list-ul"></i> Nomenclator
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'utilizatori' %}active{% endif %}"
+                           href="{% url 'manager:utilizatori' %}">
+                            <i class="bi bi-people"></i> Utilizatori
+                        </a>
+                    </li>
+                </ul>
+
+                {% elif rol == 'receptie' %}
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.app_name == 'receptie' %}active{% endif %}"
+                           href="{% url 'receptie:index' %}">
+                            <i class="bi bi-clipboard-check"></i> Comenzi
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'receptie:clienti_cauta' %}">
+                            <i class="bi bi-person-search"></i> Clienți
+                        </a>
+                    </li>
+                </ul>
+
+                {% elif rol == 'bucatarie' %}
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.app_name == 'bucatarie' %}active{% endif %}"
+                           href="{% url 'bucatarie:index' %}">
+                            <i class="bi bi-fire"></i> Producție
+                        </a>
+                    </li>
+                </ul>
+
+                {% elif rol == 'ghiseu' %}
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.app_name == 'ghiseu' %}active{% endif %}"
+                           href="{% url 'ghiseu:index' %}">
+                            <i class="bi bi-shop"></i> Ghișeu
+                        </a>
+                    </li>
+                </ul>
+
+                {% elif rol == 'livrator' %}
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.app_name == 'livrare' %}active{% endif %}"
+                           href="{% url 'livrare:index' %}">
+                            <i class="bi bi-bicycle"></i> Livrări
+                        </a>
+                    </li>
+                </ul>
+
+                {% endif %}
+                {% endwith %}
+
+                <ul class="navbar-nav ms-auto align-items-center gap-2">
+                    {% with rol=user.groups.first.name %}
+                    <li class="nav-item">
+                        <span class="badge bg-secondary rol-badge text-uppercase">{{ rol }}</span>
+                    </li>
+                    <li class="nav-item">
+                        <span class="nav-link text-light">{{ user.username }}</span>
+                    </li>
+                    {% endwith %}
+
+                    <!-- Selector temă -->
+                    <li class="nav-item dropdown">
+                        <button class="btn btn-sm btn-outline-light dropdown-toggle" data-bs-toggle="dropdown">
+                            <i class="bi bi-palette"></i> {{ tema_curenta|title }}
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><h6 class="dropdown-header small">🌙 Dark</h6></li>
+                            {% for cod, nume, tip in teme_disponibile %}
+                            {% if tip == 'dark' %}
+                            <li>
+                                <form method="post" action="{% url 'set_theme' %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="tema" value="{{ cod }}">
+                                    <input type="hidden" name="next" value="{{ request.path }}">
+                                    <button type="submit" class="dropdown-item {% if tema_curenta == cod %}active{% endif %}">
+                                        {{ nume }}
+                                    </button>
+                                </form>
+                            </li>
+                            {% endif %}
+                            {% endfor %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header small">☀️ Light</h6></li>
+                            {% for cod, nume, tip in teme_disponibile %}
+                            {% if tip == 'light' %}
+                            <li>
+                                <form method="post" action="{% url 'set_theme' %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="tema" value="{{ cod }}">
+                                    <input type="hidden" name="next" value="{{ request.path }}">
+                                    <button type="submit" class="dropdown-item {% if tema_curenta == cod %}active{% endif %}">
+                                        {{ nume }}
+                                    </button>
+                                </form>
+                            </li>
+                            {% endif %}
+                            {% endfor %}
+                        </ul>
+                    </li>
+
+                    {% if settings.AUTH_ENABLED %}
+                    <li class="nav-item">
+                        <form method="post" action="{% url 'logout' %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-outline-light">Ieșire</button>
+                        </form>
+                    </li>
+                    {% endif %}
+
+                </ul>
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+
+    <div class="container-fluid py-4">
+        {% block content %}{% endblock %}
+    </div>
+
+    {# ── Toasts mesaje — fix jos-dreapta ── #}
+    {% if messages %}
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:1100">
+        {% for message in messages %}
+        <div class="toast align-items-center border-0 text-bg-{% if message.tags == 'error' %}danger{% elif message.tags == 'warning' %}warning{% elif message.tags == 'success' %}success{% else %}secondary{% endif %}"
+             role="alert" data-bs-autohide="true" data-bs-delay="5000">
+            <div class="d-flex">
+                <div class="toast-body fw-semibold">
+                    {% if message.tags == 'error' %}<i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    {% elif message.tags == 'success' %}<i class="bi bi-check-circle-fill me-2"></i>
+                    {% endif %}
+                    {{ message }}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                        data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    {% if messages %}
+    <script>
+    document.querySelectorAll('.toast').forEach(el => new bootstrap.Toast(el).show());
+    </script>
+    {% endif %}
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

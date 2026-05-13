@@ -1,0 +1,297 @@
+{% extends 'base/base.html' %}
+{% block title %}Lansare Producție — Lotus{% endblock %}
+
+{% block extra_css %}
+<style>
+    .lot-card { border-left: 4px solid var(--bs-success); }
+    .lot-header { font-size: .85rem; }
+    .stoc-ramas-ok   { color: var(--bs-success); font-weight: 700; }
+    .stoc-ramas-warn { color: var(--bs-warning); font-weight: 700; }
+    .stoc-ramas-bad  { color: var(--bs-danger);  font-weight: 700; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{# ── Factory JS definit înainte de accordion (lot_card.html îl folosește) ── #}
+<script>
+function makeLotEditor(prefix, formId, initialItems) {
+    // Deduplicare: dacă același produs apare de mai multe ori în plan, sumăm qty
+    const _seen = {};
+    let items = [];
+    initialItems.forEach(i => {
+        if (_seen[i.id] !== undefined) { items[_seen[i.id]].qty += i.qty; }
+        else { _seen[i.id] = items.length; items.push({...i}); }
+    });
+
+    function adauga(cod) {
+        const sel   = document.getElementById(prefix + '_sel_' + cod);
+        const qtyEl = document.getElementById(prefix + '_qty_' + cod);
+        if (!sel || !sel.value) { if (sel) sel.focus(); return; }
+        const opt  = sel.options[sel.selectedIndex];
+        const id   = parseInt(sel.value);
+        const qty  = parseInt(qtyEl ? qtyEl.value : 1) || 1;
+        const pret = parseFloat(opt.dataset.pret) || 0;
+        const nume = opt.text.trim();
+        const existing = items.find(i => i.id === id);
+        if (existing) { existing.qty += qty; }
+        else { items.push({ id, nume, pret, qty }); }
+        if (sel) sel.value = '';
+        render();
+    }
+
+    function render() {
+        const tbody = document.getElementById(prefix + '_tbody');
+        const table = document.getElementById(prefix + '_table');
+        const btn   = document.getElementById(prefix + '_btn_save');
+        const form  = document.getElementById(formId);
+        if (!tbody || !form) return;
+
+        tbody.innerHTML = '';
+        items.forEach((item, idx) => {
+            const missing = !item.qty || item.qty <= 0;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="small">${item.nume}</td>
+                <td class="text-center">
+                    <input type="number" class="form-control form-control-sm text-center ${missing ? 'border-warning' : ''}"
+                           style="width:75px;display:inline-block"
+                           value="${item.qty || ''}" min="1" placeholder="porții"
+                           onchange="window['${prefix}Editor'].updateQty(${idx}, this.value)">
+                </td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1"
+                            onclick="window['${prefix}Editor'].remove(${idx})">
+                        <i class="bi bi-trash3"></i>
+                    </button>
+                </td>`;
+            tbody.appendChild(tr);
+        });
+
+        document.querySelectorAll('.' + prefix + '-hid').forEach(el => el.remove());
+        items.forEach(item => {
+            const inp = document.createElement('input');
+            inp.type = 'hidden'; inp.name = 'qty_' + item.id;
+            inp.value = item.qty; inp.className = prefix + '-hid';
+            form.appendChild(inp);
+        });
+
+        if (table) table.style.display = items.length ? '' : 'none';
+        const lipsaCantitate = items.some(i => !i.qty || i.qty <= 0);
+        if (btn)   btn.disabled = (items.length === 0 || lipsaCantitate);
+    }
+
+    function remove(idx) { items.splice(idx, 1); render(); }
+
+    function updateQty(idx, val) {
+        const q = parseInt(val);
+        if (q > 0) { items[idx].qty = q; render(); }
+    }
+
+    if (items.length) render();
+    return { adauga, render, remove, updateQty };
+}
+</script>
+
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+    <div class="d-flex align-items-center gap-2">
+        <span class="fs-4">🏭</span>
+        <h4 class="mb-0">Lansare Producție</h4>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'manager:planificare' %}?data={{ data_sel|date:'Y-m-d' }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-calendar-week"></i> Planificare
+        </a>
+        <a href="{% url 'manager:nomenclator' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-list-ul"></i> Nomenclator
+        </a>
+    </div>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show py-2">
+        {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+{% endif %}
+
+<!-- Navigare săptămână -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body py-2">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <a href="?data={{ saptamana_prev }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-chevron-left"></i> Anterioară
+            </a>
+            <div class="d-flex gap-1 flex-wrap justify-content-center">
+                {% for zi, nume_zi in zile %}
+                <a href="?data={{ zi|date:'Y-m-d' }}"
+                   class="btn btn-sm {% if zi == data_sel %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                    <span class="d-none d-md-inline">{{ nume_zi }} </span>{{ zi|date:'d.m' }}
+                </a>
+                {% endfor %}
+            </div>
+            <a href="?data={{ saptamana_next }}" class="btn btn-outline-secondary btn-sm">
+                Următoare <i class="bi bi-chevron-right"></i>
+            </a>
+        </div>
+    </div>
+</div>
+
+<h6 class="text-muted fw-semibold mb-3">
+    Producție: <span class="text-white">{{ zi_nume }}, {{ data_sel|date:'d.m.Y' }}</span>
+</h6>
+
+<!-- Stoc lansat azi -->
+{% if stoc %}
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header fw-semibold py-2">📊 Stoc lansat — situație curentă</div>
+    <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0 align-middle small">
+            <thead>
+                <tr>
+                    <th class="ps-3">Produs</th>
+                    <th class="text-center" style="width:90px">Lansat</th>
+                    <th class="text-center" style="width:90px">Consumat</th>
+                    <th class="text-center" style="width:90px">Rămas</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for nume, s in stoc.items %}
+                <tr>
+                    <td class="ps-3">{{ nume }}</td>
+                    <td class="text-center">{{ s.lansat }}</td>
+                    <td class="text-center text-muted">{{ s.consumat }}</td>
+                    <td class="text-center">
+                        {% if s.ramas <= 0 %}
+                            <span class="stoc-ramas-bad">{{ s.ramas }}</span>
+                        {% elif s.ramas < 5 %}
+                            <span class="stoc-ramas-warn">{{ s.ramas }}</span>
+                        {% else %}
+                            <span class="stoc-ramas-ok">{{ s.ramas }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Accordion loturi -->
+<div class="accordion" id="accordionLansare">
+
+    <!-- PRÂNZ -->
+    <div class="accordion-item border-0 shadow-sm mb-3">
+        <h2 class="accordion-header">
+            <button class="accordion-button {% if loturi_pranz %}collapsed{% endif %}" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#collapseP">
+                🥣 Lansare Prânz
+                {% if loturi_pranz %}
+                    <span class="badge bg-success ms-2">✅ {{ loturi_pranz|length }} lot(uri)</span>
+                {% elif not plan_pranz %}
+                    <span class="badge bg-warning text-dark ms-2">⚠️ Neplanificat</span>
+                {% else %}
+                    <span class="badge bg-secondary ms-2">⏳ Nelansat</span>
+                {% endif %}
+            </button>
+        </h2>
+        <div id="collapseP" class="accordion-collapse collapse {% if not loturi_pranz %}show{% endif %}">
+            <div class="accordion-body">
+                {% for lot in loturi_pranz %}
+                {% include 'admin_manager/partials/lot_card.html' with lot=lot tip='pranz' categorii_ev=categorii_plan_pranz data_sel=data_sel %}
+                {% endfor %}
+
+                {% if not plan_pranz %}
+                <div class="alert alert-warning py-2 small mb-0">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Prânzul nu este planificat pentru această zi.
+                    <a href="{% url 'manager:planificare' %}?data={{ data_sel|date:'Y-m-d' }}">Mergi la Planificare</a>
+                </div>
+                {% else %}
+                {% include 'admin_manager/partials/lot_form.html' with prefix='pranz' tip_plan='pranz' label='Prânz' categorii_ev=categorii_plan_pranz data_sel=data_sel %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- CINĂ -->
+    <div class="accordion-item border-0 shadow-sm mb-3">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#collapseC">
+                🌙 Lansare Cină
+                {% if loturi_cina %}
+                    <span class="badge bg-success ms-2">✅ {{ loturi_cina|length }} lot(uri)</span>
+                {% elif not plan_cina %}
+                    <span class="badge bg-warning text-dark ms-2">⚠️ Neplanificat</span>
+                {% else %}
+                    <span class="badge bg-secondary ms-2">⏳ Nelansat</span>
+                {% endif %}
+            </button>
+        </h2>
+        <div id="collapseC" class="accordion-collapse collapse">
+            <div class="accordion-body">
+                {% for lot in loturi_cina %}
+                {% include 'admin_manager/partials/lot_card.html' with lot=lot tip='cina' categorii_ev=categorii_plan_cina data_sel=data_sel %}
+                {% endfor %}
+
+                {% if not plan_cina %}
+                <div class="alert alert-warning py-2 small mb-0">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Cina nu este planificată pentru această zi.
+                    <a href="{% url 'manager:planificare' %}?data={{ data_sel|date:'Y-m-d' }}">Mergi la Planificare</a>
+                </div>
+                {% else %}
+                {% include 'admin_manager/partials/lot_form.html' with prefix='cina' tip_plan='cina' label='Cină' categorii_ev=categorii_plan_cina data_sel=data_sel %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- EVENIMENT -->
+    <div class="accordion-item border-0 shadow-sm mb-3">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#collapseEv">
+                🎉 Lansare Eveniment / Protocol / Catering
+                {% if loturi_ev %}
+                    <span class="badge bg-success ms-2">{{ loturi_ev|length }} lansat(e)</span>
+                {% endif %}
+            </button>
+        </h2>
+        <div id="collapseEv" class="accordion-collapse collapse">
+            <div class="accordion-body">
+                {% for lot in loturi_ev %}
+                {% include 'admin_manager/partials/lot_card.html' with lot=lot tip='eveniment' categorii_ev=categorii_ev data_sel=data_sel %}
+                {% endfor %}
+                {% if loturi_ev %}<hr>{% endif %}
+
+                {% include 'admin_manager/partials/lot_form.html' with prefix='ev' tip_plan='eveniment' label='Eveniment' categorii_ev=categorii_ev data_sel=data_sel show_descriere=True %}
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Inițializare editori pentru formulare noi
+window['pranzEditor'] = makeLotEditor('pranz', 'formLot_pranz', []);
+window['cinaEditor']  = makeLotEditor('cina',  'formLot_cina',  []);
+window['evEditor']    = makeLotEditor('ev',    'formLot_ev',    []);
+
+// Inițializare editori pentru loturi existente (completare)
+{% for lot in loturi_pranz %}
+window['lot{{ lot.pk }}Editor'] = makeLotEditor('lot{{ lot.pk }}', 'formAdd_{{ lot.pk }}', []);
+{% endfor %}
+{% for lot in loturi_cina %}
+window['lot{{ lot.pk }}Editor'] = makeLotEditor('lot{{ lot.pk }}', 'formAdd_{{ lot.pk }}', []);
+{% endfor %}
+{% for lot in loturi_ev %}
+window['lot{{ lot.pk }}Editor'] = makeLotEditor('lot{{ lot.pk }}', 'formAdd_{{ lot.pk }}', []);
+{% endfor %}
+</script>
+{% endblock %}

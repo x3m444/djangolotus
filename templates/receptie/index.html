@@ -1,0 +1,313 @@
+{% extends 'base/base.html' %}
+{% block title %}Recepție — Lotus{% endblock %}
+
+{% block extra_css %}
+<style>
+    .status-nou       { border-left: 4px solid #0d6efd; }
+    .status-pregatit  { border-left: 4px solid #fd7e14; }
+    .status-pedrum    { border-left: 4px solid #6f42c1; }
+    .status-livrat    { border-left: 4px solid #198754; }
+    .status-anulat    { border-left: 4px solid #6c757d; opacity:.6; }
+    .order-card       { border-radius:.5rem; transition: box-shadow .15s; }
+    .order-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.3); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-clipboard-check text-primary"></i> Recepție</h4>
+    <div class="d-flex gap-2">
+        <button class="btn btn-sm btn-outline-secondary"
+                data-bs-toggle="collapse" data-bs-target="#collapseClientCauta">
+            <i class="bi bi-search"></i> Caută client
+        </button>
+        <a href="{% url 'receptie:comanda_nou' %}" class="btn btn-sm btn-primary">
+            <i class="bi bi-plus-lg"></i> Comandă nouă
+        </a>
+    </div>
+</div>
+
+<!-- Sumar zi -->
+<div class="row g-2 mb-3">
+    <div class="col-6 col-md-3">
+        <div class="card text-center p-2 border-primary">
+            <div class="fs-3 fw-bold text-primary">{{ sumar.total }}</div>
+            <div class="small text-muted">Total azi</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center p-2 border-info">
+            <div class="fs-3 fw-bold text-info">{{ sumar.noi }}</div>
+            <div class="small text-muted">Noi</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center p-2 border-success">
+            <div class="fs-3 fw-bold text-success">{{ sumar.livrate }}</div>
+            <div class="small text-muted">Livrate</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center p-2 border-secondary">
+            <div class="fs-3 fw-bold text-secondary">{{ sumar.anulate }}</div>
+            <div class="small text-muted">Anulate</div>
+        </div>
+    </div>
+</div>
+
+<!-- Căutare client (collapse) -->
+<div class="collapse mb-3" id="collapseClientCauta">
+    <div class="card p-3">
+        <form method="get" action="{% url 'receptie:clienti_cauta' %}" class="d-flex gap-2">
+            <input type="text" name="q" class="form-control form-control-sm"
+                   placeholder="Telefon sau nume client...">
+            <button class="btn btn-sm btn-primary" type="submit">
+                <i class="bi bi-search"></i> Caută
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Comandă nouă (collapse) — TODO: full form -->
+<div class="collapse mb-3" id="collapseComandaAdd">
+    <div class="card p-3 border-primary">
+        <h6 class="fw-bold mb-3"><i class="bi bi-plus-circle text-primary"></i> Comandă nouă</h6>
+        <form method="post" action="{% url 'receptie:comanda_add' %}">
+            {% csrf_token %}
+            <input type="hidden" name="client_id" id="clientIdInput">
+
+            <!-- Selector client -->
+            <div class="row g-2 mb-2">
+                <div class="col-12">
+                    <label class="form-label small fw-semibold">
+                        <i class="bi bi-person-circle text-primary"></i> Client
+                    </label>
+                    <select id="clientSelector" class="form-select form-select-sm"
+                            onchange="selectClient(this)">
+                        <option value="">— selectează client existent —</option>
+                        {% for c in clienti %}
+                        <option value="{{ c.pk }}"
+                                data-telefon="{{ c.telefon }}"
+                                data-nume="{{ c.nume_client }}"
+                                data-adresa="{{ c.adresa_principala|default:'' }}">
+                            {{ c.nume_client }} &nbsp;|&nbsp; {{ c.telefon }}
+                        </option>
+                        {% endfor %}
+                        <option value="nou">➕ Client nou...</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Info client selectat -->
+            <div id="clientInfo" class="alert alert-primary py-2 small mb-2" style="display:none">
+                <i class="bi bi-person-check me-1"></i>
+                <strong id="clientInfoNume"></strong>
+                &nbsp;·&nbsp; <span id="clientInfoTel"></span>
+                <span id="clientInfoAdresa" class="text-muted ms-2"></span>
+            </div>
+
+            <!-- Câmpuri client nou (ascunse implicit) -->
+            <div id="clientNouFields" class="row g-2 mb-2" style="display:none">
+                <div class="col-md-4">
+                    <label class="form-label small">Telefon <span class="text-danger">*</span></label>
+                    <input type="text" name="client_telefon" id="clientTelefonInput"
+                           class="form-control form-control-sm" placeholder="07xx xxx xxx">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small">Nume <span class="text-danger">*</span></label>
+                    <input type="text" name="client_nume" id="clientNumeInput"
+                           class="form-control form-control-sm" placeholder="Prenume Nume">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small">Adresă</label>
+                    <input type="text" name="client_adresa"
+                           class="form-control form-control-sm" placeholder="Stradă, nr...">
+                </div>
+            </div>
+
+            <hr class="my-2">
+
+            <!-- Detalii comandă -->
+            <div class="row g-2">
+                <div class="col-md-3">
+                    <label class="form-label small">Tip comandă</label>
+                    <select name="tip_comanda" class="form-select form-select-sm">
+                        {% for cod, label in TIP_CHOICES %}
+                        <option value="{{ cod }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small">Plată</label>
+                    <select name="metoda_plata" class="form-select form-select-sm">
+                        <option value="">— alege —</option>
+                        {% for cod, label in PLATA_CHOICES %}
+                        <option value="{{ cod }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">Oră livrare</label>
+                    <input type="time" name="ora_livrare" class="form-control form-control-sm">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">Șofer</label>
+                    <select name="sofer" class="form-select form-select-sm">
+                        <option value="">— fără —</option>
+                        {% for liv in livratori %}
+                        <option value="{{ liv.nume }}">{{ liv.nume }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-12">
+                    <label class="form-label small">Observații</label>
+                    <input type="text" name="observatii" class="form-control form-control-sm"
+                           placeholder="Alergii, preferințe, adresă livrare...">
+                </div>
+            </div>
+
+            <hr class="my-3">
+            <h6 class="small fw-semibold mb-2">
+                <i class="bi bi-sun text-warning"></i> Meniu prânz {{ azi|date:"d.m.Y" }}
+            </h6>
+            {% if plan_pranz %}
+            <div class="row g-2">
+                {% for pz in plan_pranz %}
+                <div class="col-md-4">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text" style="max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap"
+                              title="{{ pz.produs.nume }}">
+                            {{ pz.produs.nume|truncatechars:24 }}
+                        </span>
+                        <input type="number" name="qty_{{ pz.produs.pk }}"
+                               class="form-control text-center" value="0" min="0" max="99"
+                               style="max-width:60px">
+                        {% if pz.produs.pret_standard %}
+                        <span class="input-group-text text-success">{{ pz.produs.pret_standard }} L</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="alert alert-secondary py-2 small mb-0">
+                <i class="bi bi-info-circle"></i> Niciun produs planificat pentru prânz azi.
+            </div>
+            {% endif %}
+
+            <div class="mt-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="bi bi-check-lg"></i> Salvează comanda
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm"
+                        data-bs-toggle="collapse" data-bs-target="#collapseComandaAdd">
+                    Anulează
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Filtru status -->
+<div class="d-flex gap-2 mb-3 flex-wrap">
+    <a href="?status=" class="btn btn-sm {% if not status_filter %}btn-secondary{% else %}btn-outline-secondary{% endif %}">
+        Toate
+    </a>
+    {% for cod, label in STATUS_CHOICES %}
+    <a href="?status={{ cod }}"
+       class="btn btn-sm {% if status_filter == cod %}btn-secondary{% else %}btn-outline-secondary{% endif %}">
+        {{ label }}
+    </a>
+    {% endfor %}
+</div>
+
+<!-- Lista comenzi -->
+{% if comenzi %}
+<div class="d-flex flex-column gap-2">
+{% for c in comenzi %}
+<div class="card order-card status-{{ c.status }} p-3">
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <span class="fw-bold me-2">#{{ c.id }}</span>
+            <span class="me-2">{{ c.client.nume_client }}</span>
+            <span class="text-muted small">{{ c.client.telefon }}</span>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+            {% if c.ora_livrare_estimata %}
+            <span class="badge bg-dark">
+                <i class="bi bi-clock"></i> {{ c.ora_livrare_estimata|time:"H:i" }}
+            </span>
+            {% endif %}
+            <span class="badge
+                {% if c.status == 'nou' %}bg-primary
+                {% elif c.status == 'pregatit' %}bg-warning text-dark
+                {% elif c.status == 'pedrum' %}bg-purple
+                {% elif c.status == 'livrat' %}bg-success
+                {% else %}bg-secondary{% endif %}">
+                {{ c.get_status_display }}
+            </span>
+            <a href="{% url 'receptie:comanda_detail' c.pk %}"
+               class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-eye"></i>
+            </a>
+        </div>
+    </div>
+    {% if c.linii.all %}
+    <div class="mt-2 small text-muted">
+        {% for l in c.linii.all %}{{ l.cantitate }}× {{ l.nume_produs }}{% if not forloop.last %}, {% endif %}{% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endfor %}
+</div>
+{% else %}
+<div class="alert alert-secondary">
+    <i class="bi bi-inbox"></i>
+    Nicio comandă{% if status_filter %} cu statusul „{{ status_filter }}"{% endif %} pentru {{ azi|date:"d.m.Y" }}.
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function selectClient(sel) {
+    const val        = sel.value;
+    const idInput    = document.getElementById('clientIdInput');
+    const info       = document.getElementById('clientInfo');
+    const infoNume   = document.getElementById('clientInfoNume');
+    const infoTel    = document.getElementById('clientInfoTel');
+    const infoAdresa = document.getElementById('clientInfoAdresa');
+    const nouFields  = document.getElementById('clientNouFields');
+
+    if (!val) {
+        idInput.value = '';
+        info.style.display = 'none';
+        nouFields.style.display = 'none';
+        return;
+    }
+
+    if (val === 'nou') {
+        idInput.value = '';
+        info.style.display = 'none';
+        nouFields.style.display = '';
+        document.getElementById('clientTelefonInput').focus();
+        return;
+    }
+
+    const opt    = sel.options[sel.selectedIndex];
+    const telefon = opt.dataset.telefon || '';
+    const nume    = opt.dataset.nume    || '';
+    const adresa  = opt.dataset.adresa  || '';
+
+    idInput.value          = val;
+    infoNume.textContent   = nume;
+    infoTel.textContent    = telefon;
+    infoAdresa.textContent = adresa ? '📍 ' + adresa : '';
+    info.style.display     = '';
+    nouFields.style.display = 'none';
+}
+</script>
+{% endblock %}

@@ -1,0 +1,90 @@
+{% extends 'base/base.html' %}
+{% block title %}Catalog Ingrediente — Lotus{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <h4 class="mb-0"><i class="bi bi-basket2"></i> Catalog Ingrediente</h4>
+    <a href="{% url 'manager:nomenclator' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left"></i> Nomenclator
+    </a>
+</div>
+
+{% if messages %}
+{% for message in messages %}
+<div class="alert alert-{{ message.tags }} alert-dismissible fade show py-2">
+    {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endfor %}
+{% endif %}
+
+<!-- Formular adăugare -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h6 class="fw-semibold mb-3"><i class="bi bi-plus-lg"></i> Ingredient nou</h6>
+        <form method="post" action="{% url 'manager:ingredient_add' %}">
+            {% csrf_token %}
+            <div class="row g-3 align-items-end">
+                <div class="col-12 col-md-4">
+                    <label class="form-label small fw-semibold">Denumire *</label>
+                    <input type="text" name="nume" class="form-control"
+                           placeholder="ex: morcov, ulei floarea-soarelui…" required>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small fw-semibold">Unitate *</label>
+                    <select name="unitate" class="form-select" required>
+                        {% for val, label in unitate_choices %}
+                        <option value="{{ val }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label small fw-semibold">Categorie</label>
+                    <select name="categorie" class="form-select">
+                        <option value="">— fără categorie —</option>
+                        {% for val, label in categorie_choices %}
+                        <option value="{{ val }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-md-3">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-plus-lg"></i> Adaugă
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Lista ingrediente grupată pe categorie -->
+{% if grouped %}
+{% for categorie, lista in grouped.items %}
+<div class="card shadow-sm mb-3">
+    <div class="card-header py-2 fw-semibold">
+        <i class="bi bi-tag"></i> {{ categorie }}
+        <span class="badge bg-secondary ms-2">{{ lista|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0 align-middle">
+            <tbody>
+            {% for ing in lista %}
+            <tr>
+                <td class="ps-3">{{ ing.nume }}</td>
+                <td class="text-muted small">{{ ing.unitate }}</td>
+                <td class="text-muted small">
+                    {{ ing.retete.count }} produs{{ ing.retete.count|pluralize:",e" }}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endfor %}
+{% else %}
+<div class="alert alert-secondary">
+    <i class="bi bi-info-circle"></i> Niciun ingredient definit încă.
+</div>
+{% endif %}
+
+{% endblock %}

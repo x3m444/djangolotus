@@ -1,0 +1,36 @@
+<tr id="produs-{{ produs.pk }}">
+    <td class="text-muted small">{{ produs.pk }}</td>
+    <td class="fw-semibold">{{ produs.nume }}</td>
+    <td><span class="badge bg-light text-dark border">{{ produs.categorie_display }}</span></td>
+    <td>
+        {% if produs.pret_standard %}
+            {{ produs.pret_standard }} LEI
+        {% else %}
+            <span class="text-muted">—</span>
+        {% endif %}
+    </td>
+    <td class="text-end">
+        {% with nr_ing=produs.reteta.all|length %}
+        <a href="{% url 'manager:produs_reteta' produs.pk %}"
+           class="btn btn-sm {% if nr_ing %}btn-outline-success{% else %}btn-outline-warning{% endif %}"
+           title="{% if nr_ing %}Rețetă ({{ nr_ing }} ing.){% else %}Fără rețetă{% endif %}">
+            <i class="bi bi-journal-text"></i>
+            <span style="font-size:.72rem">{% if nr_ing %}{{ nr_ing }}{% else %}!{% endif %}</span>
+        </a>
+        {% endwith %}
+        <button class="btn btn-sm btn-outline-secondary"
+                hx-get="{% url 'manager:produs_edit' produs.pk %}"
+                hx-target="#produs-{{ produs.pk }}"
+                hx-swap="outerHTML">
+            <i class="bi bi-pencil"></i>
+        </button>
+        <button class="btn btn-sm btn-outline-danger"
+                hx-post="{% url 'manager:produs_delete' produs.pk %}"
+                hx-target="#produs-{{ produs.pk }}"
+                hx-swap="outerHTML"
+                hx-confirm="Ștergi „{{ produs.nume }}"?"
+                hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+            <i class="bi bi-trash"></i>
+        </button>
+    </td>
+</tr>

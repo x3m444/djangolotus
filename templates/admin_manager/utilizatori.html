@@ -1,0 +1,222 @@
+{% extends 'base/base.html' %}
+{% block title %}Utilizatori — Lotus{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0"><i class="bi bi-people-fill text-primary"></i> Utilizatori</h4>
+    <button class="btn btn-primary btn-sm" type="button"
+            data-bs-toggle="collapse" data-bs-target="#formAdaugare">
+        <i class="bi bi-person-plus-fill"></i> Utilizator Nou
+    </button>
+</div>
+
+<!-- Formular Adăugare -->
+<div class="collapse mb-4" id="formAdaugare">
+    <div class="card border-primary shadow-sm">
+        <div class="card-header bg-primary text-white fw-semibold">
+            <i class="bi bi-person-plus-fill"></i> Adaugă Utilizator
+        </div>
+        <div class="card-body">
+            <form method="post" action="{% url 'manager:utilizator_add' %}">
+                {% csrf_token %}
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label small">Username</label>
+                        <input type="text" name="username" class="form-control form-control-sm"
+                               placeholder="utilizator" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small">Parolă</label>
+                        <input type="password" name="password" class="form-control form-control-sm"
+                               placeholder="••••••••" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small">Rol</label>
+                        <select name="rol" id="rolSelect" class="form-select form-select-sm"
+                                onchange="toggleLivrator(this.value)">
+                            {% for cod, label in ROL_CHOICES %}
+                            <option value="{{ cod }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4" id="livratordDiv" style="display:none">
+                        <label class="form-label small">Livrator asociat</label>
+                        <select name="livrator_id" class="form-select form-select-sm">
+                            <option value="">— fără —</option>
+                            {% for liv in livratori %}
+                            <option value="{{ liv.id }}">{{ liv.nume }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-check-lg"></i> Creează
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm"
+                            data-bs-toggle="collapse" data-bs-target="#formAdaugare">
+                        Anulează
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Utilizatori grupați pe rol -->
+<div class="accordion" id="accordionRoluri">
+{% for rol, label, lista in utilizatori_grouped %}
+<div class="accordion-item">
+    <h2 class="accordion-header">
+        <button class="accordion-button {% if not lista %}collapsed{% endif %}" type="button"
+                data-bs-toggle="collapse" data-bs-target="#grup_{{ rol }}">
+            {% if rol == 'admin' %}<i class="bi bi-shield-fill text-danger me-2"></i>
+            {% elif rol == 'receptie' %}<i class="bi bi-door-open text-info me-2"></i>
+            {% elif rol == 'bucatarie' %}<i class="bi bi-fire text-warning me-2"></i>
+            {% elif rol == 'ghiseu' %}<i class="bi bi-shop text-success me-2"></i>
+            {% elif rol == 'livrator' %}<i class="bi bi-bicycle text-primary me-2"></i>
+            {% endif %}
+            {{ label }}
+            <span class="badge bg-secondary ms-2">{{ lista|length }}</span>
+        </button>
+    </h2>
+    <div id="grup_{{ rol }}" class="accordion-collapse collapse {% if lista %}show{% endif %}">
+        <div class="accordion-body p-0">
+            {% if lista %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Username</th>
+                            {% if rol == 'livrator' %}<th>Livrator</th>{% endif %}
+                            <th>Status</th>
+                            <th class="text-end">Acțiuni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for u in lista %}
+                    <tr class="{% if not u.activ %}text-muted{% endif %}">
+                        <td>
+                            <i class="bi bi-person-circle me-1"></i>
+                            {{ u.username }}
+                            {% if not u.activ %}
+                            <span class="badge bg-secondary ms-1">inactiv</span>
+                            {% endif %}
+                        </td>
+
+                        {% if rol == 'livrator' %}
+                        <td>
+                            <form method="post"
+                                  action="{% url 'manager:utilizator_link_livrator' u.id %}"
+                                  class="d-inline-flex gap-1 align-items-center">
+                                {% csrf_token %}
+                                <select name="livrator_id" class="form-select form-select-sm"
+                                        style="max-width:160px">
+                                    <option value="">— fără —</option>
+                                    {% for liv in livratori %}
+                                    <option value="{{ liv.id }}"
+                                        {% if liv.id == u.livrator_id %}selected{% endif %}>
+                                        {{ liv.nume }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <button type="submit" class="btn btn-sm btn-outline-secondary"
+                                        title="Salvează">
+                                    <i class="bi bi-save"></i>
+                                </button>
+                            </form>
+                        </td>
+                        {% endif %}
+
+                        <td>
+                            {% if u.activ %}
+                            <span class="badge bg-success">Activ</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Inactiv</span>
+                            {% endif %}
+                        </td>
+
+                        <td class="text-end">
+                            <div class="d-inline-flex gap-1">
+                                <!-- Reset parolă -->
+                                <button class="btn btn-sm btn-outline-warning"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalReset_{{ u.id }}"
+                                        title="Resetează parola">
+                                    <i class="bi bi-key"></i>
+                                </button>
+
+                                <!-- Toggle activ -->
+                                <form method="post"
+                                      action="{% url 'manager:utilizator_toggle' u.id %}"
+                                      class="d-inline">
+                                    {% csrf_token %}
+                                    {% if u.activ %}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                                            title="Dezactivează">
+                                        <i class="bi bi-person-x"></i>
+                                    </button>
+                                    {% else %}
+                                    <button type="submit" class="btn btn-sm btn-outline-success"
+                                            title="Activează">
+                                        <i class="bi bi-person-check"></i>
+                                    </button>
+                                    {% endif %}
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted small p-3 mb-0">Niciun utilizator cu rolul „{{ label }}".</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endfor %}
+</div>
+
+<!-- Modale Reset Parolă -->
+{% for rol, label, lista in utilizatori_grouped %}
+{% for u in lista %}
+<div class="modal fade" id="modalReset_{{ u.id }}" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title">
+                    <i class="bi bi-key text-warning"></i> Reset parolă — {{ u.username }}
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'manager:utilizator_reset_parola' u.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <input type="password" name="password" class="form-control form-control-sm"
+                           placeholder="Parolă nouă" required>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-secondary"
+                            data-bs-dismiss="modal">Anulează</button>
+                    <button type="submit" class="btn btn-sm btn-warning">
+                        <i class="bi bi-check-lg"></i> Salvează
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endfor %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleLivrator(rol) {
+    document.getElementById('livratordDiv').style.display = rol === 'livrator' ? '' : 'none';
+}
+</script>
+{% endblock %}

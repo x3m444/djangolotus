@@ -1,0 +1,563 @@
+{% extends 'base/base.html' %}
+{% block title %}Comandă Nouă — Lotus{% endblock %}
+
+{% block extra_css %}
+<style>
+    .sticky-cos { position: sticky; top: 1rem; }
+    .zona-header { font-size: .8rem; text-transform: uppercase;
+                   letter-spacing: .06em; color: var(--bs-secondary-color); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{# ── Factory coș — definit înainte de HTML ca să fie disponibil din inline onclick ── #}
+<script>
+function makeCmdEditor(formId) {
+    let items = [];
+
+    function adauga(prefix, cod) {
+        const sel   = document.getElementById(prefix + '_sel_' + cod);
+        const qtyEl = document.getElementById(prefix + '_qty_' + cod);
+        if (!sel || !sel.value) { if (sel) sel.focus(); return; }
+        const opt  = sel.options[sel.selectedIndex];
+        const id   = parseInt(sel.value);
+        const qty  = parseInt(qtyEl ? qtyEl.value : 1) || 1;
+        const pret = parseFloat(opt.dataset.pret) || 0;
+        const tip  = opt.dataset.tip || 'standard';
+        const nome = opt.text.replace(/\s*\([\d.,]+ lei\)\s*$/i, '').trim();
+        const existing = items.find(i => i.id === id);
+        if (existing) { existing.qty += qty; }
+        else { items.push({ id, nome, pret, tip, qty }); }
+        if (sel) sel.value = '';
+        render();
+    }
+
+    function render() {
+        const form = document.getElementById(formId);
+        if (!form) return;
+
+        let total = 0;
+        items.forEach(i => { total += i.pret * i.qty; });
+
+        let rowsHtml = '';
+        items.forEach((item, idx) => {
+            const sub = item.pret * item.qty;
+            rowsHtml += `<tr>
+                <td class="small">
+                    ${item.nome}
+                    ${item.tip === 'special' ? '<span class="badge bg-warning text-dark ms-1" style="font-size:.6rem">S</span>' : ''}
+                </td>
+                <td class="text-center">
+                    <input type="number" class="form-control form-control-sm text-center"
+                           style="width:60px;display:inline-block" value="${item.qty}" min="1"
+                           onchange="window.cmdEditor.updateQty(${idx}, this.value)">
+                </td>
+                <td class="text-end small text-success fw-semibold">${sub.toFixed(2)} L</td>
+                <td class="text-center">
+                    <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1"
+                            onclick="window.cmdEditor.remove(${idx})">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </td>
+            </tr>`;
+        });
+
+        ['', '_mob'].forEach(sfx => {
+            const tbody = document.getElementById('cmd_tbody' + sfx);
+            const empty = document.getElementById('cmd_empty' + sfx);
+            const tbl   = document.getElementById('cmd_table' + sfx);
+            const totEl = document.getElementById('cmd_total' + sfx);
+            const btnEl = document.getElementById('cmd_btn_save' + sfx);
+            if (tbody) tbody.innerHTML = rowsHtml;
+            if (empty) empty.style.display = items.length ? 'none' : '';
+            if (tbl)   tbl.style.display   = items.length ? '' : 'none';
+            if (totEl) totEl.textContent   = total.toFixed(2) + ' LEI';
+            if (btnEl) btnEl.disabled      = items.length === 0;
+        });
+
+        document.querySelectorAll('.cmd-hid').forEach(el => el.remove());
+        items.forEach(item => {
+            const inp = document.createElement('input');
+            inp.type = 'hidden'; inp.name = 'qty_' + item.id;
+            inp.value = item.qty; inp.className = 'cmd-hid';
+            form.appendChild(inp);
+        });
+    }
+
+    function adaugaDirect(id, nome, pret, tip, qty) {
+        qty  = parseInt(qty) || 1;
+        pret = parseFloat(pret) || 0;
+        const existing = items.find(i => i.id === id);
+        if (existing) { existing.qty += qty; }
+        else { items.push({ id, nome, pret, tip, qty }); }
+        render();
+    }
+
+    function remove(idx)         { items.splice(idx, 1); render(); }
+    function updateQty(idx, val) { const q = parseInt(val); if (q > 0) { items[idx].qty = q; render(); } }
+    function goleste()           { if (items.length && confirm('Golești coșul?')) { items = []; render(); } }
+
+    render();
+    return { adauga, adaugaDirect, render, remove, updateQty, goleste };
+}
+</script>
+
+<div class="d-flex align-items-center gap-2 mb-3">
+    <a href="{% url 'receptie:index' %}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i>
+    </a>
+    <h4 class="mb-0"><i class="bi bi-cart-plus text-primary"></i> Comandă Nouă</h4>
+</div>
+
+{% if messages %}
+{% for message in messages %}
+<div class="alert alert-{{ message.tags }} alert-dismissible fade show py-2">
+    {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endfor %}
+{% endif %}
+
+<form method="post" action="{% url 'receptie:comanda_add' %}" id="formComanda">
+{% csrf_token %}
+<input type="hidden" name="client_id" id="clientIdInput">
+
+<div class="row g-3">
+
+<!-- ═══════════════════ STÂNGA ═══════════════════ -->
+<div class="col-12 col-lg-8">
+
+    <!-- CLIENT -->
+    <div class="card p-3 mb-3">
+        <div class="zona-header mb-2"><i class="bi bi-person-circle"></i> Client</div>
+        <select id="clientSelector" class="form-select form-select-sm mb-2"
+                onchange="selectClient(this)">
+            <option value="">— selectează client —</option>
+            {% for c in clienti %}
+            <option value="{{ c.pk }}"
+                    data-telefon="{{ c.telefon }}"
+                    data-nume="{{ c.nume_client }}"
+                    data-adresa="{{ c.adresa_principala|default:'' }}">
+                {{ c.nume_client }} &nbsp;|&nbsp; {{ c.telefon }}
+            </option>
+            {% endfor %}
+            <option value="nou">➕ Client nou...</option>
+        </select>
+
+        <div id="clientInfo" class="alert alert-primary py-2 small mb-2" style="display:none">
+            <i class="bi bi-person-check me-1"></i>
+            <strong id="clientInfoNume"></strong> &nbsp;·&nbsp;
+            <span id="clientInfoTel"></span>
+            <span id="clientInfoAdresa" class="text-muted ms-2"></span>
+        </div>
+
+        <div id="clientNouFields" class="row g-2" style="display:none">
+            <div class="col-md-4">
+                <input type="text" name="client_telefon" id="clientTelefonInput"
+                       class="form-control form-control-sm" placeholder="Telefon *">
+            </div>
+            <div class="col-md-4">
+                <input type="text" name="client_nume"
+                       class="form-control form-control-sm" placeholder="Nume *">
+            </div>
+            <div class="col-md-4">
+                <input type="text" name="client_adresa"
+                       class="form-control form-control-sm" placeholder="Adresă">
+            </div>
+        </div>
+    </div>
+
+    {# Funcții rapide meniu zilei — date baked-in din Django, apelate direct din onclick #}
+    {% if f1_plan or f2_plan %}
+    <script>
+    var _M = {
+        f1:   {% if f1_plan          %}[{{ f1_plan.0.pk  }}, '{{ f1_plan.0.nume|escapejs  }}', {{ f1_plan.0.pret_standard|default:0  }}]{% else %}null{% endif %},
+        f2v1: {% if f2_plan          %}[{{ f2_plan.0.pk  }}, '{{ f2_plan.0.nume|escapejs  }}', {{ f2_plan.0.pret_standard|default:0  }}]{% else %}null{% endif %},
+        f2v2: {% if f2_plan|length >= 2 %}[{{ f2_plan.1.pk }}, '{{ f2_plan.1.nume|escapejs }}', {{ f2_plan.1.pret_standard|default:0 }}]{% else %}null{% endif %},
+        sal:  {% if sal_plan         %}[{{ sal_plan.0.pk }}, '{{ sal_plan.0.nume|escapejs }}', {{ sal_plan.0.pret_standard|default:0 }}]{% else %}null{% endif %}
+    };
+    function _ad(p, qty) { if (p) window.cmdEditor.adaugaDirect(p[0], p[1], p[2], 'standard', qty); }
+    function _qty(id)    { return parseInt(document.getElementById(id).value) || 1; }
+
+    function cmdV1()    { var q=_qty('qty_v1');       _ad(_M.f1,q); _ad(_M.f2v1,q); _ad(_M.sal,q); }
+    function cmdV2()    { var q=_qty('qty_v2');       _ad(_M.f1,q); _ad(_M.f2v2,q); _ad(_M.sal,q); }
+    function cmdSF1()   { var q=_qty('qty_solo_f1');  _ad(_M.f1,q); }
+    function cmdSF2v1() { var q=_qty('qty_solo_f2v1');_ad(_M.f2v1,q); _ad(_M.sal,q); }
+    function cmdSF2v2() { var q=_qty('qty_solo_f2v2');_ad(_M.f2v2,q); _ad(_M.sal,q); }
+    </script>
+    {% endif %}
+
+    <!-- TABS PRODUSE -->
+    <div class="card mb-3">
+        <ul class="nav nav-tabs px-3 pt-2">
+            <li class="nav-item">
+                <a class="nav-link active" data-bs-toggle="tab" href="#tabMeniu">
+                    <i class="bi bi-calendar2-check"></i> Meniu zilei
+                    {% if not f1_plan and not f2_plan %}
+                    <span class="badge bg-warning text-dark ms-1" style="font-size:.65rem">!</span>
+                    {% endif %}
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#tabSpeciale">
+                    <i class="bi bi-stars text-warning"></i> Speciale
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#tabToate">
+                    <i class="bi bi-grid-3x3-gap text-info"></i> Toate
+                </a>
+            </li>
+        </ul>
+        <div class="tab-content p-3">
+
+            <!-- TAB: MENIU ZILEI — 5 rânduri fixe din plan -->
+            <div class="tab-pane fade show active" id="tabMeniu">
+                {% if f1_plan or f2_plan %}
+
+                {# Rând Meniu V1 #}
+                {% if f1_plan and f2_plan %}
+                <div class="row g-2 align-items-center mb-2">
+                    <div class="col-auto">
+                        <span class="badge bg-primary" style="min-width:100px">Meniu V1</span>
+                    </div>
+                    <div class="col small text-muted">
+                        {{ f1_plan.0.nume }} + {{ f2_plan.0.nume }}{% if sal_plan %} + {{ sal_plan.0.nume }}{% endif %}
+                    </div>
+                    <div class="col-auto">
+                        <input id="qty_v1" type="number" class="form-control form-control-sm text-center"
+                               style="width:65px" value="1" min="1">
+                    </div>
+                    <div class="col-auto">
+                        <button type="button" class="btn btn-sm btn-primary"
+                                onclick="cmdV1()">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+
+                {# Rând Meniu V2 — doar dacă există al doilea fel 2 #}
+                {% if f1_plan and f2_plan|length >= 2 %}
+                <div class="row g-2 align-items-center mb-2">
+                    <div class="col-auto">
+                        <span class="badge bg-primary" style="min-width:100px">Meniu V2</span>
+                    </div>
+                    <div class="col small text-muted">
+                        {{ f1_plan.0.nume }} + {{ f2_plan.1.nume }}{% if sal_plan %} + {{ sal_plan.0.nume }}{% endif %}
+                    </div>
+                    <div class="col-auto">
+                        <input id="qty_v2" type="number" class="form-control form-control-sm text-center"
+                               style="width:65px" value="1" min="1">
+                    </div>
+                    <div class="col-auto">
+                        <button type="button" class="btn btn-sm btn-primary"
+                                onclick="cmdV2()">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+
+                <hr class="my-2">
+
+                {# Rând Solo Fel 1 #}
+                {% if f1_plan %}
+                <div class="row g-2 align-items-center mb-2">
+                    <div class="col-auto">
+                        <span class="badge bg-outline-secondary border text-body" style="min-width:100px">Solo Fel 1</span>
+                    </div>
+                    <div class="col small text-muted">{{ f1_plan.0.nume }}</div>
+                    <div class="col-auto">
+                        <input id="qty_solo_f1" type="number" class="form-control form-control-sm text-center"
+                               style="width:65px" value="1" min="1">
+                    </div>
+                    <div class="col-auto">
+                        <button type="button" class="btn btn-sm btn-outline-primary"
+                                onclick="cmdSF1()">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+
+                {# Rând Solo Fel 2 v1 #}
+                {% if f2_plan %}
+                <div class="row g-2 align-items-center mb-2">
+                    <div class="col-auto">
+                        <span class="badge bg-outline-secondary border text-body" style="min-width:100px">Solo Fel 2</span>
+                    </div>
+                    <div class="col small text-muted">
+                        {{ f2_plan.0.nume }}{% if sal_plan %} + {{ sal_plan.0.nume }}{% endif %}
+                    </div>
+                    <div class="col-auto">
+                        <input id="qty_solo_f2v1" type="number" class="form-control form-control-sm text-center"
+                               style="width:65px" value="1" min="1">
+                    </div>
+                    <div class="col-auto">
+                        <button type="button" class="btn btn-sm btn-outline-primary"
+                                onclick="cmdSF2v1()">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+
+                {# Rând Solo Fel 2 v2 — doar dacă există al doilea fel 2 #}
+                {% if f2_plan|length >= 2 %}
+                <div class="row g-2 align-items-center mb-2">
+                    <div class="col-auto">
+                        <span class="badge bg-outline-secondary border text-body" style="min-width:100px">Solo Fel 2 v2</span>
+                    </div>
+                    <div class="col small text-muted">
+                        {{ f2_plan.1.nume }}{% if sal_plan %} + {{ sal_plan.0.nume }}{% endif %}
+                    </div>
+                    <div class="col-auto">
+                        <input id="qty_solo_f2v2" type="number" class="form-control form-control-sm text-center"
+                               style="width:65px" value="1" min="1">
+                    </div>
+                    <div class="col-auto">
+                        <button type="button" class="btn btn-sm btn-outline-primary"
+                                onclick="cmdSF2v2()">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% else %}
+                <div class="alert alert-secondary py-2 small mb-0">
+                    <i class="bi bi-info-circle"></i>
+                    Niciun meniu planificat pentru {{ azi|date:"d.m.Y" }}.
+                    Folosește <strong>Speciale</strong> sau <strong>Toate</strong>.
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- TAB: SPECIALE -->
+            <div class="tab-pane fade" id="tabSpeciale">
+                {% if speciale %}
+                <div class="row g-2 align-items-center">
+                    <div class="col">
+                        <select id="special_sel_sp" class="form-select form-select-sm">
+                            <option value="">— selectează produs special —</option>
+                            {% for p in speciale %}
+                            <option value="{{ p.pk }}"
+                                    data-pret="{{ p.pret_standard|default:0 }}"
+                                    data-tip="special">
+                                {{ p.nume }}{% if p.pret_standard %} ({{ p.pret_standard }} lei){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <input id="special_qty_sp" type="number"
+                               class="form-control form-control-sm text-center"
+                               style="width:65px" value="1" min="1">
+                    </div>
+                    <div class="col-auto">
+                        <button type="button" class="btn btn-sm btn-warning"
+                                onclick="window.cmdEditor.adauga('special','sp')">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-muted small mb-0">Niciun produs special în nomenclator.</p>
+                {% endif %}
+            </div>
+
+            <!-- TAB: TOATE — dropdown per categorie, tot nomenclatorul (ca lansare eveniment) -->
+            <div class="tab-pane fade" id="tabToate">
+                {% for cod, label, produse_cat in categorii_toate %}
+                <div class="row g-2 align-items-center mb-2">
+                    <div class="col-auto">
+                        <span class="badge bg-secondary" style="min-width:90px">{{ label }}</span>
+                    </div>
+                    <div class="col">
+                        <select id="toate_sel_{{ cod }}" class="form-select form-select-sm">
+                            <option value="">— selectează —</option>
+                            {% for p in produse_cat %}
+                            <option value="{{ p.pk }}"
+                                    data-pret="{{ p.pret_standard|default:0 }}"
+                                    data-tip="{% if p.categorie == 'special' %}special{% else %}standard{% endif %}">
+                                {{ p.nume }}{% if p.pret_standard %} ({{ p.pret_standard }} lei){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <input id="toate_qty_{{ cod }}" type="number"
+                               class="form-control form-control-sm text-center"
+                               style="width:65px" value="1" min="1">
+                    </div>
+                    <div class="col-auto">
+                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                onclick="window.cmdEditor.adauga('toate','{{ cod }}')">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+        </div>
+    </div>
+
+    <!-- DETALII LIVRARE -->
+    <div class="card p-3 mb-3">
+        <div class="zona-header mb-2"><i class="bi bi-truck"></i> Detalii livrare</div>
+        <div class="row g-2">
+            <div class="col-md-3">
+                <label class="form-label small">Dată comandă</label>
+                <input type="date" name="data_comanda"
+                       class="form-control form-control-sm"
+                       value="{{ azi|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small">Oră livrare</label>
+                <select name="ora_livrare" class="form-select form-select-sm">
+                    {% for val, lbl in ORA_CHOICES %}
+                    <option value="{{ val }}">{{ lbl }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small">Șofer</label>
+                <select name="sofer" class="form-select form-select-sm" required>
+                    <option value="">— selectează livrator —</option>
+                    {% for l in livratori %}
+                    <option value="{{ l.nume }}">{{ l.nume }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small">Metodă plată</label>
+                <select name="metoda_plata" class="form-select form-select-sm">
+                    <option value="">— nespecificată —</option>
+                    {% for val, lbl in PLATA_CHOICES %}
+                    <option value="{{ val }}">{{ lbl }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-8">
+                <label class="form-label small">Observații</label>
+                <input type="text" name="observatii"
+                       class="form-control form-control-sm" placeholder="adresă, detalii...">
+            </div>
+        </div>
+    </div>
+
+    <!-- COȘ MOBIL (d-lg-none) -->
+    <div class="card d-lg-none mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center py-2">
+            <span class="fw-semibold"><i class="bi bi-cart3 text-success"></i> Coș</span>
+            <button type="button" class="btn btn-sm btn-outline-danger py-0"
+                    onclick="window.cmdEditor.goleste()">
+                <i class="bi bi-trash3"></i>
+            </button>
+        </div>
+        <div class="card-body p-2">
+            <p id="cmd_empty_mob" class="text-muted small text-center py-2 mb-0">
+                <i class="bi bi-cart-x d-block fs-4 mb-1"></i>Coșul este gol
+            </p>
+            <table class="table table-sm mb-0" id="cmd_table_mob" style="display:none">
+                <thead class="table-secondary small">
+                    <tr>
+                        <th>Produs</th>
+                        <th class="text-center" style="width:65px">Qty</th>
+                        <th class="text-end"     style="width:75px">Total</th>
+                        <th style="width:30px"></th>
+                    </tr>
+                </thead>
+                <tbody id="cmd_tbody_mob"></tbody>
+            </table>
+        </div>
+        <div class="card-footer d-flex justify-content-between align-items-center py-2">
+            <span class="fw-bold" id="cmd_total_mob">0.00 LEI</span>
+            <button id="cmd_btn_save_mob" type="submit"
+                    class="btn btn-success btn-sm" disabled>
+                <i class="bi bi-check2-circle"></i> Salvează comanda
+            </button>
+        </div>
+    </div>
+
+</div><!-- /col stânga -->
+
+<!-- ═══════════════════ DREAPTA (desktop) ═══════════════════ -->
+<div class="col-lg-4 d-none d-lg-block">
+    <div class="sticky-cos">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center py-2">
+                <span class="fw-semibold"><i class="bi bi-cart3 text-success"></i> Coș</span>
+                <button type="button" class="btn btn-sm btn-outline-danger py-0"
+                        onclick="window.cmdEditor.goleste()">
+                    <i class="bi bi-trash3"></i>
+                </button>
+            </div>
+            <div class="card-body p-2">
+                <p id="cmd_empty" class="text-muted small text-center py-3 mb-0">
+                    <i class="bi bi-cart-x fs-3 d-block mb-1"></i>Coșul este gol
+                </p>
+                <table class="table table-sm mb-0" id="cmd_table" style="display:none">
+                    <thead class="table-secondary small">
+                        <tr>
+                            <th>Produs</th>
+                            <th class="text-center" style="width:65px">Qty</th>
+                            <th class="text-end"     style="width:75px">Total</th>
+                            <th style="width:30px"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="cmd_tbody"></tbody>
+                </table>
+            </div>
+            <div class="card-footer d-flex justify-content-between align-items-center py-2">
+                <span class="fw-bold" id="cmd_total">0.00 LEI</span>
+                <button id="cmd_btn_save" type="submit"
+                        class="btn btn-success btn-sm" disabled>
+                    <i class="bi bi-check2-circle"></i> Salvează
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div><!-- /row -->
+</form>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+window.cmdEditor = makeCmdEditor('formComanda');
+
+
+function selectClient(sel) {
+    const val       = sel.value;
+    const idInput   = document.getElementById('clientIdInput');
+    const info      = document.getElementById('clientInfo');
+    const nouFields = document.getElementById('clientNouFields');
+
+    if (!val) {
+        idInput.value = '';
+        info.style.display    = 'none';
+        nouFields.style.display = 'none';
+        return;
+    }
+    if (val === 'nou') {
+        idInput.value = '';
+        info.style.display    = 'none';
+        nouFields.style.display = '';
+        document.getElementById('clientTelefonInput')?.focus();
+        return;
+    }
+    const opt = sel.options[sel.selectedIndex];
+    idInput.value = val;
+    document.getElementById('clientInfoNume').textContent   = opt.dataset.nume;
+    document.getElementById('clientInfoTel').textContent    = opt.dataset.telefon;
+    document.getElementById('clientInfoAdresa').textContent = opt.dataset.adresa ? '📍 ' + opt.dataset.adresa : '';
+    info.style.display    = '';
+    nouFields.style.display = 'none';
+}
+</script>
+{% endblock %}

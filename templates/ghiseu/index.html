@@ -1,0 +1,997 @@
+{% extends 'base/base.html' %}
+{% block title %}Ghișeu — Lotus{% endblock %}
+
+{% block extra_css %}
+<style>
+    .ang-row        { border-radius: .35rem; transition: opacity .2s; }
+    .ang-row.servit { opacity: .5; }
+    .buf-chip       { min-width: 80px; border-radius: .4rem; }
+    .tbl-sm td, .tbl-sm th { padding: .3rem .55rem; font-size: .84rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-shop"></i> Ghișeu</h4>
+    <div class="d-flex align-items-center gap-2">
+        <div class="btn-group btn-group-sm" role="group" aria-label="Plan zi">
+            <a href="?set_tip_plan=pranz"
+               class="btn {% if tip_plan == 'pranz' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                <i class="bi bi-sun-fill"></i> Prânz
+            </a>
+            <a href="?set_tip_plan=cina"
+               class="btn {% if tip_plan == 'cina' %}btn-warning text-dark{% else %}btn-outline-secondary{% endif %}">
+                <i class="bi bi-moon-fill"></i> Cină
+            </a>
+        </div>
+        <span class="badge bg-secondary">{{ azi|date:"d.m.Y" }}</span>
+    </div>
+</div>
+
+<ul class="nav nav-tabs mb-3" id="tabGhiseu">
+    <li class="nav-item">
+        <a class="nav-link {% if not request.GET.tab or request.GET.tab == 'firme' %}active{% endif %}"
+           href="?tab=firme">
+            <i class="bi bi-building"></i> Firme
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if request.GET.tab == 'bon' %}active{% endif %}"
+           href="?tab=bon">
+            <i class="bi bi-receipt"></i> Bon Casă
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if request.GET.tab == 'special' %}active{% endif %}"
+           href="?tab=special">
+            <i class="bi bi-stars"></i> Special
+            {% if comenzi_speciale_gata %}
+            <span class="badge bg-success ms-1">{{ comenzi_speciale_gata|length }}</span>
+            {% elif comenzi_speciale_noi %}
+            <span class="badge bg-warning text-dark ms-1">{{ comenzi_speciale_noi|length }}</span>
+            {% endif %}
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if request.GET.tab == 'raport' %}active{% endif %}"
+           href="?tab=raport">
+            <i class="bi bi-bar-chart"></i> Raport
+            {% if stats.total %}<span class="badge bg-secondary ms-1">{{ stats.total }}</span>{% endif %}
+        </a>
+    </li>
+</ul>
+
+
+{# ══ Card buffer — informativ, vizibil în Firme și Bon ══ #}
+{% if not request.GET.tab or request.GET.tab == 'firme' or request.GET.tab == 'bon' %}
+<div class="card mb-3 border-0 shadow-sm">
+    <div class="card-header py-2 fw-semibold small d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-layers"></i> Buffer disponibil
+        <span class="text-muted fw-normal ms-1">— disponibil / total pregătit</span></span>
+        {% if tip_plan == 'cina' %}
+        <span class="badge bg-warning text-dark"><i class="bi bi-moon-fill"></i> CINĂ</span>
+        {% endif %}
+    </div>
+    <div class="card-body py-2 px-3">
+        <div class="row g-3">
+
+            {# Masă — componente individuale #}
+            <div class="col-12 col-md-6">
+                <div class="small fw-semibold mb-1">
+                    <i class="bi bi-cup-hot"></i> La masă
+                </div>
+                {% if buffer_masa %}
+                <table class="table table-sm mb-0" style="font-size:.85rem">
+                    <tbody>
+                    {% for b in buffer_masa %}{% if b.cantitate > 0 %}
+                    <tr>
+                        <td class="ps-0">{{ b.label }}</td>
+                        <td class="text-end pe-0 fw-bold text-nowrap
+                            {% if b.disponibil > 3 %}text-success
+                            {% elif b.disponibil > 0 %}text-warning
+                            {% else %}text-danger{% endif %}">
+                            {{ b.disponibil }} / {{ b.cantitate }}
+                            {% if b.disponibil == 0 %}
+                            <i class="bi bi-exclamation-triangle-fill ms-1"></i>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endif %}{% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <span class="text-muted small">Necompletat</span>
+                {% endif %}
+            </div>
+
+            {# Pachet — meniuri compuse #}
+            <div class="col-12 col-md-6">
+                <div class="small fw-semibold mb-1">
+                    <i class="bi bi-box-seam"></i> La pachet
+                </div>
+                {% if buffer_pachet %}
+                <table class="table table-sm mb-0" style="font-size:.85rem">
+                    <tbody>
+                    {% for b in buffer_pachet %}{% if b.cantitate > 0 %}
+                    <tr>
+                        <td class="ps-0">{{ b.label }}</td>
+                        <td class="text-end pe-0 fw-bold text-nowrap
+                            {% if b.disponibil > 3 %}text-success
+                            {% elif b.disponibil > 0 %}text-warning
+                            {% else %}text-danger{% endif %}">
+                            {{ b.disponibil }} / {{ b.cantitate }}
+                            {% if b.disponibil == 0 %}
+                            <i class="bi bi-exclamation-triangle-fill ms-1"></i>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endif %}{% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <span class="text-muted small">Necompletat</span>
+                {% endif %}
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endif %}
+
+
+{# ══════════════ TAB FIRME ══════════════ #}
+{% if not request.GET.tab or request.GET.tab == 'firme' %}
+
+{% if not meniu_optiuni %}
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle"></i>
+    Niciun meniu planificat pentru azi.
+</div>
+{% endif %}
+
+{% if firme_data %}
+<div class="accordion" id="accordionFirme">
+{% for fd in firme_data %}
+<div class="accordion-item mb-2 shadow-sm border">
+    <h2 class="accordion-header">
+        <button class="accordion-button py-2" type="button"
+                data-bs-toggle="collapse" data-bs-target="#firma_{{ fd.firma.pk }}">
+            <i class="bi bi-building me-2"></i>
+            <strong>{{ fd.firma.nume_firma }}</strong>
+            <span class="ms-3 badge {% if fd.nr_serviti == fd.nr_total and fd.nr_total > 0 %}bg-success{% else %}bg-secondary{% endif %}">
+                {{ fd.nr_serviti }}/{{ fd.nr_total }}
+            </span>
+        </button>
+    </h2>
+    <div id="firma_{{ fd.firma.pk }}" class="accordion-collapse collapse">
+        <div class="accordion-body p-2">
+
+            <div class="d-flex flex-column gap-2 mb-2">
+            {% for d in fd.angajati %}
+
+            {% if d.servire %}
+            {# ── Servit ── #}
+            <div class="ang-row servit d-flex justify-content-between align-items-center px-2 py-1 rounded bg-success bg-opacity-10">
+                <div>
+                    <span class="small fw-semibold text-decoration-line-through">{{ d.angajat.nume_angajat }}</span>
+                    {% if d.produse_str %}
+                    <div style="font-size:.72rem" class="text-muted">{{ d.produse_str }}</div>
+                    {% endif %}
+                </div>
+                <span class="badge {% if d.servire.tip_ridicare == 'pachet' %}bg-primary{% else %}bg-success{% endif %} small">
+                    {% if d.servire.tip_ridicare == 'pachet' %}
+                        <i class="bi bi-box-seam"></i> Pachet
+                    {% else %}
+                        <i class="bi bi-cup-hot"></i> Masă
+                    {% endif %}
+                </span>
+            </div>
+
+            {% else %}
+            {# ── Neservit ── #}
+            <div class="ang-row px-2 py-2 border rounded">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-semibold small">{{ d.angajat.nume_angajat }}</span>
+                    <form method="post" action="{% url 'ghiseu:angajat_toggle' d.angajat.pk %}">
+                        {% csrf_token %}
+                        <button class="btn btn-outline-secondary py-0 px-1" style="font-size:.7rem"
+                                title="Pune în concediu">
+                            <i class="bi bi-calendar-x"></i>
+                        </button>
+                    </form>
+                </div>
+                {% if meniu_optiuni %}
+                <form method="post" action="{% url 'ghiseu:servire_add' %}"
+                      class="d-flex flex-wrap gap-2 align-items-center">
+                    {% csrf_token %}
+                    <input type="hidden" name="firma_id"   value="{{ fd.firma.pk }}">
+                    <input type="hidden" name="angajat_id" value="{{ d.angajat.pk }}">
+
+                    <select name="tip_meniu" class="form-select form-select-sm" style="max-width:320px">
+                        {% for opt in meniu_optiuni %}
+                        <option value="{{ opt.key }}">{{ opt.label }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <div class="btn-group btn-group-sm">
+                        <input type="radio" class="btn-check" name="tip_ridicare"
+                               id="m_{{ d.angajat.pk }}" value="la_masa" checked>
+                        <label class="btn btn-outline-secondary" for="m_{{ d.angajat.pk }}">
+                            <i class="bi bi-cup-hot"></i> Masă
+                        </label>
+                        <input type="radio" class="btn-check" name="tip_ridicare"
+                               id="p_{{ d.angajat.pk }}" value="pachet">
+                        <label class="btn btn-outline-secondary" for="p_{{ d.angajat.pk }}">
+                            <i class="bi bi-box-seam"></i> Pachet
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn btn-sm btn-success">
+                        <i class="bi bi-check2"></i> Servit
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% empty %}
+            <p class="text-muted small mb-0">Niciun angajat activ.</p>
+            {% endfor %}
+            </div>
+
+            {# Concediu #}
+            {% if fd.ang_inactivi %}
+            <details class="mt-1">
+                <summary class="text-muted small" style="cursor:pointer">
+                    <i class="bi bi-calendar-x"></i> {{ fd.ang_inactivi|length }} în concediu
+                </summary>
+                <div class="d-flex flex-wrap gap-1 mt-1 ms-2">
+                {% for a in fd.ang_inactivi %}
+                <form method="post" action="{% url 'ghiseu:angajat_toggle' a.pk %}">
+                    {% csrf_token %}
+                    <button class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.74rem">
+                        <i class="bi bi-person-check"></i> {{ a.nume_angajat }}
+                    </button>
+                </form>
+                {% endfor %}
+                </div>
+            </details>
+            {% endif %}
+
+            {# Adaugă angajat #}
+            <form method="post" action="{% url 'ghiseu:angajat_add' %}"
+                  class="d-flex gap-2 mt-2 pt-2 border-top">
+                {% csrf_token %}
+                <input type="hidden" name="firma_id" value="{{ fd.firma.pk }}">
+                <input type="text" name="nume_angajat" class="form-control form-control-sm"
+                       placeholder="Angajat nou…" style="max-width:200px">
+                <button class="btn btn-sm btn-outline-primary" type="submit">
+                    <i class="bi bi-person-plus"></i>
+                </button>
+            </form>
+
+        </div>
+    </div>
+</div>
+{% endfor %}
+</div>
+
+{% else %}
+<div class="alert alert-secondary">
+    <i class="bi bi-info-circle"></i> Nicio firmă ghișeu activă.
+</div>
+{% endif %}
+
+
+{# ── Distribuire Eveniment ──────────────────────────────────────── #}
+{% if loturi_ev %}
+<h6 class="fw-semibold mt-4 mb-2">
+    <i class="bi bi-calendar-event text-info"></i> Eveniment — gata de distribuit
+</h6>
+<div class="d-flex flex-column gap-2">
+{% for lot in loturi_ev %}
+<div class="card p-3 border {% if lot.tip_ridicare == 'pachet' %}border-primary{% else %}border-success{% endif %}">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+        <div>
+            <span class="fw-semibold">{{ lot.observatii|default:"Lot eveniment" }}</span>
+            <span class="ms-2 badge {% if lot.tip_ridicare == 'pachet' %}bg-primary{% else %}bg-success{% endif %}">
+                {% if lot.tip_ridicare == 'pachet' %}
+                    <i class="bi bi-box-seam"></i> La pachet
+                {% else %}
+                    <i class="bi bi-cup-hot"></i> La masă
+                {% endif %}
+            </span>
+            {% if lot.ora_livrare_estimata %}
+            <span class="badge bg-dark ms-1"><i class="bi bi-clock"></i> {{ lot.ora_livrare_estimata|time:"H:i" }}</span>
+            {% endif %}
+            {% if lot.linii.all %}
+            <div class="small text-muted mt-1">
+                {% for l in lot.linii.all %}{{ l.cantitate }}× {{ l.nume_produs }}{% if not forloop.last %}, {% endif %}{% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            {% if lot.total_plata %}
+            <span class="badge bg-warning text-dark fs-6">
+                {{ lot.total_plata|floatformat:2 }} lei
+            </span>
+            {% endif %}
+            <form method="post" action="{% url 'ghiseu:eveniment_distribuit' lot.pk %}">
+                {% csrf_token %}
+                <button class="btn btn-sm {% if lot.tip_ridicare == 'pachet' %}btn-primary{% else %}btn-success{% endif %}">
+                    {% if lot.tip_ridicare == 'pachet' %}
+                        <i class="bi bi-box-seam"></i> Preluat
+                    {% else %}
+                        <i class="bi bi-check2-all"></i> Servit la masă
+                    {% endif %}
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+</div>
+{% endif %}
+
+
+{# ══════════════ TAB BON CASĂ ══════════════ #}
+{% elif request.GET.tab == 'bon' %}
+
+<div class="row g-4">
+
+{# ── Stânga: istoric bonuri azi ── #}
+<div class="col-12 col-lg-6 order-2 order-lg-1">
+    <div class="card shadow-sm">
+        <div class="card-header fw-semibold py-2 d-flex justify-content-between align-items-center"
+             style="cursor:pointer" data-bs-toggle="collapse" data-bs-target="#istoricBon">
+            <span><i class="bi bi-clock-history"></i> Bonuri înregistrate azi
+                {% if serviri_bon %}<span class="badge bg-secondary ms-1">{{ serviri_bon|length }}</span>{% endif %}
+            </span>
+            <div class="d-flex align-items-center gap-2">
+                {% if total_bon %}
+                <span class="badge bg-success">{{ total_bon|floatformat:2 }} lei</span>
+                {% endif %}
+                <i class="bi bi-chevron-down small"></i>
+            </div>
+        </div>
+        <div id="istoricBon" class="collapse">
+        <div class="card-body p-0">
+        {% if serviri_bon %}
+        <table class="table table-sm tbl-sm align-middle mb-0">
+            <thead>
+                <tr>
+                    <th class="ps-3">Ora</th>
+                    <th>Produse</th>
+                    <th class="text-end">Tip</th>
+                    <th class="text-end pe-3">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for s in serviri_bon %}
+            <tr>
+                <td class="ps-3 text-muted text-nowrap">{{ s.ora_servire|time:"H:i" }}</td>
+                <td class="small">
+                    {% for l in s.linii.all %}
+                    {{ l.cantitate }}× {{ l.nume_produs }}{% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                </td>
+                <td class="text-end">
+                    {% if s.tip_ridicare == 'pachet' %}
+                        <span class="badge bg-primary"><i class="bi bi-box-seam"></i></span>
+                    {% else %}
+                        <span class="badge bg-success"><i class="bi bi-cup-hot"></i></span>
+                    {% endif %}
+                </td>
+                <td class="text-end pe-3 fw-bold text-nowrap">
+                    {% if s.total_calculat %}
+                        {{ s.total_calculat|floatformat:2 }} lei
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="text-muted text-center py-4 small">Niciun bon înregistrat azi.</div>
+        {% endif %}
+        </div>
+        </div>{# /collapse #}
+    </div>
+</div>
+
+{# ── Dreapta: coș bon casă ── #}
+<div class="col-12 col-lg-6 order-1 order-lg-2">
+{% if meniu_optiuni %}
+<div class="card shadow-sm">
+    <div class="card-header fw-semibold py-2">
+        <i class="bi bi-receipt"></i> Bon casă nou
+    </div>
+    <div class="card-body">
+
+        {# Tip servire #}
+        <div class="mb-3">
+            <label class="form-label small fw-semibold mb-1">Tip servire</label>
+            <div class="d-flex gap-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="bon_tip_ui"
+                           id="bonMasa" value="la_masa" checked onchange="bonUpdateTip(this.value)">
+                    <label class="form-check-label" for="bonMasa">
+                        <i class="bi bi-cup-hot"></i> La masă
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="bon_tip_ui"
+                           id="bonPachet" value="pachet" onchange="bonUpdateTip(this.value)">
+                    <label class="form-check-label" for="bonPachet">
+                        <i class="bi bi-box-seam"></i> La pachet
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        {# Selector meniu + cantitate #}
+        <div class="mb-2">
+            <label class="form-label small fw-semibold mb-1">Adaugă meniu</label>
+            <div class="input-group">
+                <select id="bonSelMeniu" class="form-select form-select-sm">
+                    <option value="">— alege meniu —</option>
+                    {% for opt in meniu_optiuni %}
+                    <option value="{{ opt.key }}"
+                            data-pret="{{ opt.pret }}"
+                            data-label="{{ opt.label }}">
+                        {{ opt.label }}{% if opt.pret %} — {{ opt.pret|floatformat:2 }} lei{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+                <input type="number" id="bonQty" class="form-control form-control-sm text-center"
+                       value="1" min="1" max="20" style="max-width:65px">
+                <button type="button" class="btn btn-outline-primary btn-sm" onclick="bonAdauga()">
+                    <i class="bi bi-plus-lg"></i>
+                </button>
+            </div>
+        </div>
+
+        {# Coș #}
+        <div class="mb-3">
+            <div id="bonGol" class="text-muted small text-center py-3">
+                <i class="bi bi-receipt d-block fs-4 mb-1"></i> Coșul este gol
+            </div>
+            <div id="bonLinii" class="d-none">
+                <table class="table table-sm mb-1">
+                    <tbody id="bonBody"></tbody>
+                </table>
+                <div class="d-flex justify-content-between align-items-center border-top pt-2">
+                    <span class="fw-semibold small">Total bon</span>
+                    <span class="fw-bold fs-6" id="bonTotal">0.00 lei</span>
+                </div>
+            </div>
+        </div>
+
+        {# Formular ascuns #}
+        <form id="frmBon" method="post" action="{% url 'ghiseu:bon_add' %}">
+            {% csrf_token %}
+            <input type="hidden" name="tip_ridicare" id="bonHidTip" value="la_masa">
+            <div id="bonHiddenInputs"></div>
+            <button type="button" id="bonBtnSubmit" class="btn btn-primary w-100" disabled
+                    onclick="bonTrimite()">
+                <i class="bi bi-check-lg"></i> Înregistrează bon
+            </button>
+        </form>
+
+    </div>
+</div>
+{% else %}
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle"></i> Niciun meniu planificat pentru azi.
+</div>
+{% endif %}
+</div>
+
+</div>{# /row #}
+
+<script>
+let bonCos = [];  // [{key, label, pret, qty}]
+
+function bonUpdateTip(val) {
+    document.getElementById('bonHidTip').value = val;
+}
+
+function bonAdauga() {
+    const sel = document.getElementById('bonSelMeniu');
+    const qty = parseInt(document.getElementById('bonQty').value) || 1;
+    if (!sel.value) { sel.focus(); return; }
+    const opt   = sel.options[sel.selectedIndex];
+    const key   = sel.value;
+    const label = opt.dataset.label || opt.text.split(' — ')[0].trim();
+    const pret  = parseFloat(opt.dataset.pret) || 0;
+    const existent = bonCos.find(l => l.key === key);
+    if (existent) { existent.qty += qty; }
+    else { bonCos.push({ key, label, pret, qty }); }
+    sel.value = '';
+    document.getElementById('bonQty').value = 1;
+    bonRender();
+}
+
+function bonSterge(key) {
+    bonCos = bonCos.filter(l => l.key !== key);
+    bonRender();
+}
+
+function bonRender() {
+    const gol    = document.getElementById('bonGol');
+    const linii  = document.getElementById('bonLinii');
+    const body   = document.getElementById('bonBody');
+    const total  = document.getElementById('bonTotal');
+    const btn    = document.getElementById('bonBtnSubmit');
+    const hidden = document.getElementById('bonHiddenInputs');
+
+    if (bonCos.length === 0) {
+        gol.classList.remove('d-none');
+        linii.classList.add('d-none');
+        btn.disabled = true;
+        hidden.innerHTML = '';
+        return;
+    }
+    gol.classList.add('d-none');
+    linii.classList.remove('d-none');
+    btn.disabled = false;
+
+    let totalVal = 0, rowsHtml = '', inputsHtml = '';
+    bonCos.forEach(l => {
+        const subtotal = l.pret * l.qty;
+        totalVal += subtotal;
+        rowsHtml += `
+            <tr>
+                <td class="small fw-semibold">${l.label}</td>
+                <td class="text-center small" style="width:40px">${l.qty}×</td>
+                <td class="text-end small" style="width:70px">${subtotal > 0 ? subtotal.toFixed(2) + ' lei' : '—'}</td>
+                <td style="width:30px">
+                    <button type="button" class="btn btn-link text-danger p-0"
+                            onclick="bonSterge('${l.key}')">
+                        <i class="bi bi-x-lg" style="font-size:.8rem"></i>
+                    </button>
+                </td>
+            </tr>`;
+        inputsHtml += `<input type="hidden" name="qty_${l.key}" value="${l.qty}">`;
+    });
+    body.innerHTML = rowsHtml;
+    hidden.innerHTML = inputsHtml;
+    total.textContent = totalVal > 0 ? totalVal.toFixed(2) + ' lei' : '—';
+}
+
+function bonTrimite() {
+    if (bonCos.length === 0) return;
+    document.getElementById('frmBon').submit();
+}
+
+// Persistăm starea collapse istoric bonuri
+const _istoricEl = document.getElementById('istoricBon');
+if (_istoricEl) {
+    if (localStorage.getItem('istoricBonOpen') === 'true') {
+        new bootstrap.Collapse(_istoricEl, { toggle: false }).show();
+    }
+    _istoricEl.addEventListener('shown.bs.collapse',  () => localStorage.setItem('istoricBonOpen', 'true'));
+    _istoricEl.addEventListener('hidden.bs.collapse', () => localStorage.setItem('istoricBonOpen', 'false'));
+}
+
+document.getElementById('bonQty').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); bonAdauga(); }
+});
+document.getElementById('bonSelMeniu').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); bonAdauga(); }
+});
+</script>
+
+
+{# ══════════════ TAB SPECIAL ══════════════ #}
+{% elif request.GET.tab == 'special' %}
+
+
+<div class="row g-4">
+
+{# ── Stânga: comenzi active + servite ── #}
+<div class="col-12 col-lg-7 order-2 order-lg-1">
+<div class="card shadow-sm h-100">
+    <div class="card-header fw-semibold py-2">
+        <i class="bi bi-list-check"></i> Comenzi active
+        {% if comenzi_speciale_gata %}
+        <span class="badge bg-success ms-1">{{ comenzi_speciale_gata|length }} gata</span>
+        {% endif %}
+        {% if comenzi_speciale_noi %}
+        <span class="badge bg-warning text-dark ms-1">{{ comenzi_speciale_noi|length }} în prep.</span>
+        {% endif %}
+    </div>
+    <div class="card-body p-3">
+
+    {# Gata de servit #}
+    {% if comenzi_speciale_gata %}
+    <div class="mb-3">
+        <div class="small text-success fw-semibold mb-2">
+            <i class="bi bi-check-circle-fill"></i> Gata de servit
+        </div>
+        {% for cmd in comenzi_speciale_gata %}
+        <div class="card border-success mb-2">
+            <div class="card-body py-2 px-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div>
+                    <span class="fw-bold">#{{ cmd.id }}</span>
+                    <span class="badge {% if cmd.tip_ridicare == 'la_masa' %}bg-primary{% else %}bg-secondary{% endif %} ms-1">
+                        {% if cmd.tip_ridicare == 'la_masa' %}La masă{% else %}La pachet{% endif %}
+                    </span>
+                    <div class="small text-muted mt-1">
+                        {% for l in cmd.linii.all %}{{ l.cantitate }}× {{ l.nume_produs }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                    </div>
+                    {% if cmd.total_plata %}
+                    <div class="small fw-bold text-success mt-1">{{ cmd.total_plata }} lei</div>
+                    {% endif %}
+                </div>
+                <form method="post" action="{% url 'ghiseu:special_livrat' cmd.pk %}">
+                    {% csrf_token %}
+                    <button class="btn btn-success btn-sm px-3">
+                        <i class="bi bi-check-lg"></i> Servit
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {# În pregătire #}
+    {% if comenzi_speciale_noi %}
+    <div class="mb-3">
+        <div class="small text-warning fw-semibold mb-2">
+            <i class="bi bi-hourglass-split"></i> În pregătire la bucătărie
+        </div>
+        {% for cmd in comenzi_speciale_noi %}
+        <div class="card border-warning mb-2">
+            <div class="card-body py-2 px-3">
+                <span class="fw-bold">#{{ cmd.id }}</span>
+                <span class="badge {% if cmd.tip_ridicare == 'la_masa' %}bg-primary{% else %}bg-secondary{% endif %} ms-1">
+                    {% if cmd.tip_ridicare == 'la_masa' %}La masă{% else %}La pachet{% endif %}
+                </span>
+                <div class="small text-muted mt-1">
+                    {% for l in cmd.linii.all %}{{ l.cantitate }}× {{ l.nume_produs }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if not comenzi_speciale_gata and not comenzi_speciale_noi %}
+    <div class="text-muted text-center py-4">
+        <i class="bi bi-stars fs-3 d-block mb-2 text-secondary"></i>
+        <span class="small">Nicio comandă specială activă acum.</span>
+    </div>
+    {% endif %}
+
+    {# Servite azi #}
+    {% if comenzi_speciale_livrate %}
+    <div class="{% if comenzi_speciale_gata or comenzi_speciale_noi %}border-top pt-3 mt-1{% endif %}">
+        <div class="small text-muted fw-semibold mb-2">
+            <i class="bi bi-clock-history"></i> Servite azi
+        </div>
+        {% for cmd in comenzi_speciale_livrate %}
+        <div class="d-flex align-items-center gap-2 py-1 border-bottom small text-muted">
+            <span class="fw-bold text-dark">#{{ cmd.id }}</span>
+            <span class="badge {% if cmd.tip_ridicare == 'la_masa' %}bg-primary{% else %}bg-secondary{% endif %} bg-opacity-75" style="font-size:.68rem">
+                {% if cmd.tip_ridicare == 'la_masa' %}masă{% else %}pachet{% endif %}
+            </span>
+            <span>{% for l in cmd.linii.all %}{{ l.cantitate }}× {{ l.nume_produs }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>
+            {% if cmd.total_plata %}<span class="ms-auto fw-semibold text-dark">{{ cmd.total_plata }} lei</span>{% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    </div>{# /card-body #}
+</div>{# /card #}
+
+</div>
+
+{# ── Dreapta: formular coș ── #}
+<div class="col-12 col-lg-5 order-1 order-lg-2">
+    <div class="card shadow-sm">
+        <div class="card-header fw-semibold py-2">
+            <i class="bi bi-cart3"></i> Comandă specială nouă
+        </div>
+        <div class="card-body">
+
+            {# Tip servire #}
+            <div class="mb-3">
+                <label class="form-label small fw-semibold mb-1">Tip servire</label>
+                <div class="d-flex gap-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="tip_ridicare_ui"
+                               id="trMasa" value="la_masa" checked onchange="updateTipRidicare(this.value)">
+                        <label class="form-check-label" for="trMasa">
+                            <i class="bi bi-cup-hot"></i> La masă
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="tip_ridicare_ui"
+                               id="trPachet" value="la_pachet" onchange="updateTipRidicare(this.value)">
+                        <label class="form-check-label" for="trPachet">
+                            <i class="bi bi-box-seam"></i> La pachet
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            {# Selector produs + cantitate #}
+            <div class="mb-2">
+                <label class="form-label small fw-semibold mb-1">Adaugă produs</label>
+                <div class="input-group">
+                    <select id="selProdus" class="form-select form-select-sm">
+                        <option value="">— alege produsul —</option>
+                        {% for p in produse_speciale %}
+                        <option value="{{ p.pk }}" data-pret="{{ p.pret_standard|default:0 }}">
+                            {{ p.nume }}{% if p.pret_standard %} — {{ p.pret_standard }} lei{% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <input type="number" id="inpQty" class="form-control form-control-sm text-center"
+                           value="1" min="1" max="50" step="1" style="max-width:65px">
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="adaugaInCos()">
+                        <i class="bi bi-plus-lg"></i>
+                    </button>
+                </div>
+            </div>
+
+            {# Coș #}
+            <div id="cosContainer" class="mb-3" style="min-height:60px">
+                <div id="cosGol" class="text-muted small text-center py-3">
+                    <i class="bi bi-cart3 d-block fs-4 mb-1"></i> Coșul este gol
+                </div>
+                <div id="cosLinii" class="d-none">
+                    <table class="table table-sm mb-1" id="tblCos">
+                        <tbody id="cosBody"></tbody>
+                    </table>
+                    <div class="d-flex justify-content-between align-items-center border-top pt-2">
+                        <span class="fw-semibold small">Total</span>
+                        <span class="fw-bold text-primary" id="cosTotal">0 lei</span>
+                    </div>
+                </div>
+            </div>
+
+            {# Formular ascuns — submit real #}
+            <form id="frmSpecial" method="post" action="{% url 'ghiseu:special_comanda_add' %}">
+                {% csrf_token %}
+                <input type="hidden" name="tip_ridicare" id="hidTipRidicare" value="la_masa">
+                <div id="hiddenInputs"></div>
+                <button type="button" id="btnTrimite" class="btn btn-primary w-100" disabled onclick="trimiteComanda()">
+                    <i class="bi bi-send"></i> Trimite la bucătărie
+                </button>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+</div>
+
+<script>
+let cos = [];  // [{id, nume, pret, qty}]
+
+function updateTipRidicare(val) {
+    document.getElementById('hidTipRidicare').value = val;
+}
+
+function adaugaInCos() {
+    const sel  = document.getElementById('selProdus');
+    const qty  = parseInt(document.getElementById('inpQty').value) || 1;
+    const id   = parseInt(sel.value);
+    if (!id) return;
+
+    const opt  = sel.options[sel.selectedIndex];
+    const nume = opt.text.split(' — ')[0].trim();
+    const pret = parseFloat(opt.dataset.pret) || 0;
+
+    const existent = cos.find(l => l.id === id);
+    if (existent) {
+        existent.qty += qty;
+    } else {
+        cos.push({ id, nume, pret, qty });
+    }
+
+    sel.value = '';
+    document.getElementById('inpQty').value = 1;
+    renderCos();
+}
+
+function stergedinCos(id) {
+    cos = cos.filter(l => l.id !== id);
+    renderCos();
+}
+
+function renderCos() {
+    const gol    = document.getElementById('cosGol');
+    const linii  = document.getElementById('cosLinii');
+    const body   = document.getElementById('cosBody');
+    const total  = document.getElementById('cosTotal');
+    const btn    = document.getElementById('btnTrimite');
+    const hidden = document.getElementById('hiddenInputs');
+
+    if (cos.length === 0) {
+        gol.classList.remove('d-none');
+        linii.classList.add('d-none');
+        btn.disabled = true;
+        hidden.innerHTML = '';
+        return;
+    }
+
+    gol.classList.add('d-none');
+    linii.classList.remove('d-none');
+    btn.disabled = false;
+
+    let totalVal = 0;
+    let rowsHtml = '';
+    let inputsHtml = '';
+
+    cos.forEach(l => {
+        const subtotal = l.pret * l.qty;
+        totalVal += subtotal;
+        rowsHtml += `
+            <tr>
+                <td class="small fw-semibold">${l.nume}</td>
+                <td class="text-center small" style="width:45px">${l.qty}×</td>
+                <td class="text-end small" style="width:60px">${subtotal > 0 ? subtotal.toFixed(2) + ' lei' : '—'}</td>
+                <td style="width:30px">
+                    <button type="button" class="btn btn-link text-danger p-0" onclick="stergedinCos(${l.id})">
+                        <i class="bi bi-x-lg" style="font-size:.8rem"></i>
+                    </button>
+                </td>
+            </tr>`;
+        inputsHtml += `<input type="hidden" name="qty_${l.id}" value="${l.qty}">`;
+    });
+
+    body.innerHTML = rowsHtml;
+    hidden.innerHTML = inputsHtml;
+    total.textContent = totalVal > 0 ? totalVal.toFixed(2) + ' lei' : '—';
+}
+
+function trimiteComanda() {
+    if (cos.length === 0) return;
+    document.getElementById('frmSpecial').submit();
+}
+
+// Enter în qty adaugă direct
+document.getElementById('inpQty').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); adaugaInCos(); }
+});
+document.getElementById('selProdus').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); adaugaInCos(); }
+});
+</script>
+
+
+{# ══════════════ TAB RAPORT ══════════════ #}
+{% elif request.GET.tab == 'raport' %}
+
+<div class="d-flex flex-column gap-3 mb-4">
+
+    {# ── Card Firme ── #}
+    <div class="card shadow-sm">
+        <div class="card-header py-2 d-flex justify-content-between align-items-center">
+            <span class="fw-semibold"><i class="bi bi-building"></i> Firme</span>
+            <span class="badge {% if nr_serviti_angajati == nr_total_angajati and nr_total_angajati > 0 %}bg-success{% else %}bg-secondary{% endif %}">
+                {{ nr_serviti_angajati }}/{{ nr_total_angajati }} angajați
+            </span>
+        </div>
+        <div class="card-body py-2 px-3">
+            {% if nr_total_angajati > 0 %}
+            <div class="progress mb-3" style="height:6px">
+                <div class="progress-bar bg-success"
+                     style="width:{% widthratio nr_serviti_angajati nr_total_angajati 100 %}%"></div>
+            </div>
+            {% endif %}
+            {% if rezumat_firme %}
+            {% for nume, qty in rezumat_firme %}
+            <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
+                <span class="small">{{ nume }}</span>
+                <span class="fw-bold">{{ qty }}×</span>
+            </div>
+            {% endfor %}
+            {% else %}
+            <div class="text-muted small py-2">Nicio servire firmă înregistrată.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# ── Card Bon casă ── #}
+    <div class="card shadow-sm">
+        <div class="card-header py-2 d-flex justify-content-between align-items-center">
+            <span class="fw-semibold"><i class="bi bi-receipt"></i> Bon casă</span>
+            <div class="d-flex align-items-center gap-2">
+                {% if total_bon %}
+                <span class="badge bg-success">{{ total_bon|floatformat:2 }} lei</span>
+                {% endif %}
+                <span class="badge bg-secondary">{{ stats.bon }} bon{% if stats.bon != 1 %}uri{% endif %}</span>
+            </div>
+        </div>
+        <div class="card-body py-2 px-3">
+            {% if rezumat_bon %}
+            {% for nume, qty in rezumat_bon %}
+            <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
+                <span class="small">{{ nume }}</span>
+                <span class="fw-bold">{{ qty }}×</span>
+            </div>
+            {% endfor %}
+            {% else %}
+            <div class="text-muted small py-2">Niciun bon înregistrat.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# ── Card Speciale ── #}
+    {% if comenzi_speciale_livrate %}
+    <div class="card shadow-sm">
+        <div class="card-header py-2 d-flex justify-content-between align-items-center">
+            <span class="fw-semibold"><i class="bi bi-stars"></i> Speciale</span>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-secondary">{{ comenzi_speciale_livrate|length }} comenzi</span>
+                {% if total_speciale %}
+                <span class="badge bg-success">{{ total_speciale|floatformat:2 }} lei</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="card-body py-2 px-3">
+            {% for nume, qty in rezumat_speciale %}
+            <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
+                <span class="small">{{ nume }}</span>
+                <span class="fw-bold">{{ qty }}×</span>
+            </div>
+            {% empty %}
+            <div class="text-muted small py-2">—</div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── Card Evenimente ── #}
+    {% if stats.evenimente %}
+    <div class="card shadow-sm border-info">
+        <div class="card-header py-2 d-flex justify-content-between align-items-center">
+            <span class="fw-semibold">
+                <i class="bi bi-calendar-event text-info"></i> Evenimente distribuite
+            </span>
+            {% if total_ev_distribuite %}
+            <span class="badge bg-warning text-dark">{{ total_ev_distribuite|floatformat:2 }} lei</span>
+            {% endif %}
+        </div>
+        <div class="card-body py-2 px-3">
+        {% for lot in loturi_ev_distribuite %}
+        <div class="py-2 {% if not forloop.last %}border-bottom{% endif %}">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <span class="fw-semibold small">{{ lot.observatii|default:"Lot eveniment" }}</span>
+                    <span class="badge {% if lot.tip_ridicare == 'pachet' %}bg-primary{% else %}bg-success{% endif %} ms-1">
+                        {% if lot.tip_ridicare == 'pachet' %}Pachet{% else %}Masă{% endif %}
+                    </span>
+                    {% if lot.livrat_la %}
+                    <span class="text-muted small ms-1">{{ lot.livrat_la|time:"H:i" }}</span>
+                    {% endif %}
+                </div>
+                {% if lot.total_plata %}
+                <span class="fw-bold text-nowrap ms-2">{{ lot.total_plata|floatformat:2 }} lei</span>
+                {% endif %}
+            </div>
+            <div class="mt-1">
+            {% for l in lot.linii.all %}
+            <span class="text-muted small">{{ l.cantitate }}× {{ l.nume_produs }}{% if not forloop.last %}, {% endif %}</span>
+            {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+{% endif %}
+
+{% endblock %}

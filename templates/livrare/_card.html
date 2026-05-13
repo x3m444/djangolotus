@@ -1,0 +1,112 @@
+{% comment %}Partial: card comandă livrator. Variabile: c (Comanda){% endcomment %}
+<div class="card comanda-card card-{{ c.status }} p-3">
+
+    <!-- Header: ID + client + ora + total -->
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-1">
+        <div>
+            <span class="fw-bold me-1">#{{ c.id }}</span>
+            <span class="fw-semibold">{{ c.client.nume_client }}</span>
+            {% if c.client.telefon %}
+            <a href="tel:{{ c.client.telefon }}" class="ms-2 small text-muted">
+                <i class="bi bi-phone"></i> {{ c.client.telefon }}
+            </a>
+            {% endif %}
+        </div>
+        <div class="d-flex gap-1 align-items-center">
+            {% if c.ora_livrare_estimata %}
+            <span class="badge bg-dark"><i class="bi bi-clock"></i> {{ c.ora_livrare_estimata|time:"H:i" }}</span>
+            {% endif %}
+            {% if c.metoda_plata == 'cash' %}
+            <span class="badge cash-badge">
+                <i class="bi bi-cash-coin"></i> {{ c.total_plata|floatformat:0 }} lei CASH
+            </span>
+            {% elif c.metoda_plata == 'card' %}
+            <span class="badge bg-primary">
+                <i class="bi bi-credit-card"></i> Card
+            </span>
+            {% elif c.metoda_plata == 'cantina' %}
+            <span class="badge bg-secondary">
+                <i class="bi bi-building"></i> Cantină
+            </span>
+            {% elif c.metoda_plata == 'factura' %}
+            <span class="badge bg-secondary">
+                <i class="bi bi-file-text"></i> Factură
+            </span>
+            {% else %}
+            <span class="badge bg-secondary">—</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Adresă -->
+    {% if c.client.adresa_principala %}
+    <div class="small mt-1">
+        <i class="bi bi-geo-alt text-danger"></i> {{ c.client.adresa_principala }}
+    </div>
+    {% endif %}
+
+    <!-- Produse -->
+    {% if c.linii.all %}
+    <div class="small text-muted mt-1">
+        {% for l in c.linii.all %}{{ l.cantitate }}× {{ l.nume_produs }}{% if not forloop.last %}, {% endif %}{% endfor %}
+    </div>
+    {% endif %}
+
+    {% if c.observatii %}
+    <div class="small text-warning mt-1"><i class="bi bi-chat-text"></i> {{ c.observatii }}</div>
+    {% endif %}
+
+    <!-- Acțiuni -->
+    {% if c.status != 'anulat' %}
+    <div class="mt-2 d-flex flex-wrap gap-2">
+
+        {% if c.status == 'pregatit' %}
+        <form method="post" action="{% url 'livrare:pedrum' c.pk %}">
+            {% csrf_token %}
+            <button class="btn btn-sm btn-warning">
+                <i class="bi bi-truck"></i> Am preluat
+            </button>
+        </form>
+        {% endif %}
+
+        {% if c.status == 'pedrum' %}
+        <form method="post" action="{% url 'livrare:livrat' c.pk %}">
+            {% csrf_token %}
+            <button class="btn btn-sm btn-success">
+                <i class="bi bi-check-lg"></i> Livrat!
+            </button>
+        </form>
+        {% endif %}
+
+        {% if c.status != 'livrat' %}
+        <!-- Raportează problemă -->
+        <button class="btn btn-sm btn-outline-danger"
+                data-bs-toggle="collapse"
+                data-bs-target="#problema{{ c.pk }}">
+            <i class="bi bi-exclamation-circle"></i>
+        </button>
+        {% endif %}
+
+        <!-- Aviz Excel -->
+        <a href="{% url 'livrare:aviz' c.pk %}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-file-earmark-spreadsheet"></i> Aviz
+        </a>
+
+    </div>
+
+    <!-- Formular problemă (colaps) -->
+    {% if c.status != 'livrat' %}
+    <div class="collapse mt-2" id="problema{{ c.pk }}">
+        <form method="post" action="{% url 'livrare:problema' c.pk %}" class="d-flex gap-2">
+            {% csrf_token %}
+            <input type="text" name="observatii" class="form-control form-control-sm"
+                   placeholder="Descrie problema (opțional)">
+            <button type="submit" class="btn btn-sm btn-danger text-nowrap">
+                <i class="bi bi-exclamation-triangle"></i> Trimite
+            </button>
+        </form>
+    </div>
+    {% endif %}
+
+    {% endif %}
+</div>

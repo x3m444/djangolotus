@@ -1,0 +1,674 @@
+{% extends 'base/base.html' %}
+{% block title %}Firme cu Contract — Lotus{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+    <div class="d-flex align-items-center gap-2">
+        <span class="fs-4">🏢</span>
+        <h4 class="mb-0">Firme cu Contract</h4>
+    </div>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show py-2">
+        {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+{% endif %}
+
+<!-- Tab navigation -->
+<ul class="nav nav-tabs mb-4">
+    <li class="nav-item">
+        <a class="nav-link {% if tab == 'gestiune' %}active{% endif %}"
+           href="?tab=gestiune">⚙️ Gestiune Firme</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if tab == 'lansare' %}active{% endif %}"
+           href="?tab=lansare&data={{ data_sel|date:'Y-m-d' }}">🚀 Lansare Zilnică</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if tab == 'prezenta' %}active{% endif %}"
+           href="?tab=prezenta">📋 Confirmare Prezență</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if tab == 'raport' %}active{% endif %}"
+           href="?tab=raport&raport_data={{ raport_data|date:'Y-m-d' }}">📊 Raport Serviri</a>
+    </li>
+</ul>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- TAB: GESTIUNE -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+{% if tab == 'gestiune' %}
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header fw-semibold py-2" style="cursor:pointer"
+         data-bs-toggle="collapse" data-bs-target="#formAddFirma">
+        <i class="bi bi-plus-circle"></i> Adaugă Firmă Nouă
+    </div>
+    <div class="collapse" id="formAddFirma">
+        <div class="card-body">
+            <form method="post" action="{% url 'manager:firma_add' %}">
+                {% csrf_token %}
+                <div class="row g-3 align-items-end">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label small fw-semibold">Nume firmă / instituție</label>
+                        <input type="text" name="nume" class="form-control" required
+                               placeholder="ex: Școala nr. 1, SC Alfa SRL...">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label small fw-semibold">Tip firmă</label>
+                        <select name="tip_firma" class="form-select" id="addTipFirma">
+                            {% for cod, label in TIP_FIRMA %}
+                            <option value="{{ cod }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label small fw-semibold">Contract</label>
+                        <select name="tip_contract" class="form-select">
+                            {% for cod, label in TIPURI_CONTRACT %}
+                            <option value="{{ cod }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2" id="addCantDiv">
+                        <label class="form-label small fw-semibold">Cant. default</label>
+                        <input type="number" name="cantitate_default" class="form-control"
+                               min="1" value="1">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">Adaugă</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% for tip_cod, tip_label, firme_tip in firme_grouped %}
+{% if firme_tip %}
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-header py-2 fw-semibold">
+        {{ tip_label }}
+        <span class="badge bg-secondary ms-1">{{ firme_tip|length }}</span>
+        <small class="text-muted fw-normal ms-2">— {{ TIP_FIRMA_DESC|default_if_none:'' }}</small>
+    </div>
+    <div class="card-body p-0">
+        <div class="accordion accordion-flush" id="acc-{{ tip_cod }}">
+            {% for firma in firme_tip %}
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed py-2" type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#firma-{{ firma.pk }}">
+                        {% if firma.activ %}🟢{% else %}💤{% endif %}
+                        <span class="ms-2 fw-semibold">{{ firma.nume_firma }}</span>
+                        <span class="ms-2 text-muted small">
+                            — {{ TIPURI_CONTRACT_DICT|default_if_none:'' }}
+                            {% with contract=firma.tip_contract %}
+                            {% for cod, label in TIPURI_CONTRACT %}{% if cod == contract %} {{ label }}{% endif %}{% endfor %}
+                            {% endwith %}
+                        </span>
+                        {% if firma.tip_firma == 'ghiseu' or firma.tip_firma == 'ghiseu_livrare' %}
+                        <span class="ms-2 badge bg-info text-dark small">
+                            👥 {{ firma.angajati.all|length }} angajați
+                        </span>
+                        {% endif %}
+                    </button>
+                </h2>
+                <div id="firma-{{ firma.pk }}" class="accordion-collapse collapse">
+                    <div class="accordion-body">
+                        <form method="post" action="{% url 'manager:firma_save' firma.pk %}">
+                            {% csrf_token %}
+                            <div class="row g-2 mb-3">
+                                <div class="col-12 col-md-4">
+                                    <label class="form-label small">Nume</label>
+                                    <input type="text" name="nume" class="form-control form-control-sm"
+                                           value="{{ firma.nume_firma }}">
+                                </div>
+                                <div class="col-6 col-md-2">
+                                    <label class="form-label small">Tip firmă</label>
+                                    <select name="tip_firma" class="form-select form-select-sm">
+                                        {% for cod, label in TIP_FIRMA %}
+                                        <option value="{{ cod }}" {% if firma.tip_firma == cod %}selected{% endif %}>
+                                            {{ label }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-6 col-md-2">
+                                    <label class="form-label small">Contract</label>
+                                    <select name="tip_contract" class="form-select form-select-sm">
+                                        {% for cod, label in TIPURI_CONTRACT %}
+                                        <option value="{{ cod }}" {% if firma.tip_contract == cod %}selected{% endif %}>
+                                            {{ label }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                {% if firma.tip_firma != 'ghiseu' and firma.tip_firma != 'ghiseu_livrare' %}
+                                <div class="col-6 col-md-2">
+                                    <label class="form-label small">Cant. default</label>
+                                    <input type="number" name="cantitate_default" class="form-control form-control-sm"
+                                           min="0" value="{{ firma.cantitate_default|default:0 }}">
+                                </div>
+                                {% endif %}
+                                <div class="col-6 col-md-3">
+                                    <label class="form-label small">Telefon / contact</label>
+                                    <input type="text" name="telefon" class="form-control form-control-sm"
+                                           value="{{ firma.client.telefon|default:'' }}"
+                                           placeholder="0740 123 456">
+                                </div>
+                                <div class="col-12 col-md-5">
+                                    <label class="form-label small">Adresă livrare</label>
+                                    <input type="text" name="adresa" class="form-control form-control-sm"
+                                           value="{{ firma.client.adresa_principala|default:'' }}"
+                                           placeholder="Str. ..., nr. ...">
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-save"></i> Salvează
+                                </button>
+                                <form method="post" action="{% url 'manager:firma_toggle' firma.pk %}"
+                                      class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit"
+                                            class="btn btn-sm {% if firma.activ %}btn-outline-danger{% else %}btn-outline-success{% endif %}">
+                                        {% if firma.activ %}🔴 Dezactivează{% else %}🟢 Reactivează{% endif %}
+                                    </button>
+                                </form>
+                            </div>
+                        </form>
+
+                        {% if firma.tip_firma == 'ghiseu' or firma.tip_firma == 'ghiseu_livrare' %}
+                        <hr>
+                        <h6 class="fw-semibold small mb-2">👥 Angajați</h6>
+                        {% for ang in firma.angajati.all %}
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <span class="small {% if ang.activ %}text-body{% else %}text-muted{% endif %}">
+                                {% if ang.activ %}👤{% else %}💤{% endif %} {{ ang.nume_angajat }}
+                            </span>
+                            <form method="post" action="{% url 'manager:angajat_toggle' ang.pk %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-xs py-0 px-1
+                                    {% if ang.activ %}btn-outline-secondary{% else %}btn-outline-success{% endif %}"
+                                    style="font-size:.75rem">
+                                    {% if ang.activ %}Concediu{% else %}Reactivează{% endif %}
+                                </button>
+                            </form>
+                        </div>
+                        {% empty %}
+                        <p class="text-muted small">Niciun angajat adăugat.</p>
+                        {% endfor %}
+                        <form method="post" action="{% url 'manager:angajat_add' firma.pk %}"
+                              class="d-flex gap-2 mt-2">
+                            {% csrf_token %}
+                            <input type="text" name="nume" class="form-control form-control-sm"
+                                   placeholder="Nume angajat nou..." required>
+                            <button type="submit" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-plus"></i> Adaugă
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- TAB: LANSARE ZILNICĂ -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+{% elif tab == 'lansare' %}
+
+<div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
+    <span class="fw-semibold">Data livrare:</span>
+    <div class="d-flex gap-1">
+        <a href="?tab=lansare&data={{ data_sel|date:'Y-m-d'|add:'-1' }}"
+           class="btn btn-outline-secondary btn-sm"><i class="bi bi-chevron-left"></i></a>
+        <input type="date" id="dataLansare" class="form-control form-control-sm"
+               value="{{ data_sel|date:'Y-m-d' }}" style="width:160px"
+               onchange="location.href='?tab=lansare&data='+this.value">
+        <a href="?tab=lansare&data={{ data_sel|date:'Y-m-d' }}"
+           class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-clockwise"></i></a>
+    </div>
+    {% if not livratori %}
+    <span class="badge bg-warning text-dark">⚠️ Nu există livratori configurați</span>
+    {% endif %}
+</div>
+
+{% if not firme_livrare %}
+<div class="alert alert-info">Nu există firme cu livrare active. Adaugă din tab-ul Gestiune Firme.</div>
+{% else %}
+
+{% for firma in firme_livrare %}
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-header py-2 fw-semibold d-flex justify-content-between align-items-center">
+        <span>
+            {% if firma.tip_firma == 'ghiseu_livrare' %}🚚+🏪
+            {% elif firma.tip_firma == 'livrare' %}🚚
+            {% else %}⭐{% endif %}
+            {{ firma.nume_firma }}
+            <small class="text-muted ms-2">
+                {% for cod, label in TIP_FIRMA %}{% if cod == firma.tip_firma %}— {{ label }}{% endif %}{% endfor %}
+            </small>
+        </span>
+        {% if lansate|default_if_none:'' %}
+            {% for fid, info in lansate.items %}{% if fid == firma.pk %}
+            <span class="badge bg-success">✅ Lansată</span>
+            {% endif %}{% endfor %}
+        {% endif %}
+    </div>
+    <div class="card-body">
+
+        {% comment %}Check if already launched{% endcomment %}
+        {% with info=lansate|default_if_none:'' %}
+        {% for fid, lot_info in lansate.items %}{% if fid == firma.pk %}
+        <!-- Already launched -->
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <p class="mb-1 small text-muted">
+                    🚗 {{ lot_info.sofer }} | 🕐 {{ lot_info.ora }} | 💰 {{ lot_info.total|floatformat:0 }} lei
+                </p>
+                <ul class="mb-0 small ps-3">
+                    {% for linie in lot_info.linii %}
+                    <li>{{ linie.cantitate }} × {{ linie.nume_produs }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <form method="post" action="{% url 'manager:firme_lansare_sterge' lot_info.comanda_id %}"
+                  onsubmit="return confirm('Anulezi această comandă?')">
+                {% csrf_token %}
+                <input type="hidden" name="data" value="{{ data_sel|date:'Y-m-d' }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                    <i class="bi bi-trash3"></i> Anulează
+                </button>
+            </form>
+        </div>
+        {% endif %}{% endfor %}
+
+        {% comment %}If not launched, show form{% endcomment %}
+        {% if firma.pk not in lansate %}
+        <form method="post" action="{% url 'manager:firme_lansare_salveaza' %}"
+              id="formLansare_{{ firma.pk }}">
+            {% csrf_token %}
+            <input type="hidden" name="firma_id" value="{{ firma.pk }}">
+            <input type="hidden" name="data" value="{{ data_sel|date:'Y-m-d' }}">
+            <input type="hidden" name="tip_livrare" value="{{ firma.tip_firma }}">
+
+            <div class="row g-2 mb-3">
+                <div class="col-6 col-md-3">
+                    <label class="form-label small">Livrator</label>
+                    <select name="livrator" class="form-select form-select-sm" required>
+                        <option value="" disabled selected>— selectează livrator —</option>
+                        {% for liv in livratori %}
+                        <option>{{ liv.nume }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small">Ora livrare</label>
+                    <input type="time" name="ora" class="form-control form-control-sm"
+                           value="{% if firma.tip_firma == 'livrare' %}11:30{% else %}12:00{% endif %}">
+                </div>
+            </div>
+
+            <!-- Produse -->
+            {% if firma.tip_firma == 'special' %}
+
+            <!-- ── Mini-coș meniu special: felul 1 / felul 2 / salată ── -->
+            {% for cod, label, produse in CATEGORII_PRODUSE %}
+            {% if cod == 'felul_1' or cod == 'felul_2' or cod == 'salate' %}
+            <div class="row g-1 align-items-center mb-1">
+                <div class="col-5">
+                    <select id="selSp_{{ cod }}_{{ firma.pk }}"
+                            class="form-select form-select-sm">
+                        <option value="">— {{ label }} —</option>
+                        {% for p in produse %}
+                        <option value="{{ p.pk }}"
+                                data-nume="{{ p.nume }}"
+                                data-pret="{{ p.pret_standard|default:0 }}">
+                            {{ p.nume }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-2">
+                    <input type="number" id="qtySp_{{ cod }}_{{ firma.pk }}"
+                           class="form-control form-control-sm text-center"
+                           value="{{ firma.cantitate_default|default:1 }}" min="1" max="999">
+                </div>
+                <div class="col-5">
+                    <button type="button"
+                            class="btn btn-outline-primary btn-sm w-100"
+                            onclick="adaugaSpItem({{ firma.pk }}, '{{ cod }}')">
+                        <i class="bi bi-plus-lg"></i> {{ label }}
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+
+            <div id="spCart_{{ firma.pk }}" class="mb-2 d-flex flex-column gap-1"></div>
+            <div id="spCartGol_{{ firma.pk }}" class="text-muted small mb-2">
+                <i class="bi bi-info-circle"></i> Niciun produs adăugat încă.
+            </div>
+            <div class="d-flex justify-content-between align-items-center border-top pt-2 mb-3">
+                <span class="fw-semibold small">Total:
+                    <span id="spTotal_{{ firma.pk }}">0.00 L</span>
+                </span>
+            </div>
+
+            {% else %}
+
+            <table class="table table-sm align-middle mb-3">
+                <thead>
+                    <tr>
+                        <th>Produs</th>
+                        <th class="text-center" style="width:130px">Cantitate</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if firma.tip_firma == 'livrare' %}
+                        {% for p in sandwich_plan %}
+                        <tr>
+                            <td>{{ p.nume }} <small class="text-muted">(sandwich)</small></td>
+                            <td><input type="number" name="qty_{{ p.pk }}"
+                                       class="form-control form-control-sm text-center"
+                                       min="0" value="{{ firma.cantitate_default|default:1 }}"></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="2" class="text-muted small">
+                            ⚠️ Niciun sandwich planificat pentru această dată.
+                        </td></tr>
+                        {% endfor %}
+
+                    {% else %} {# ghiseu_livrare #}
+                        {% for p in felul_1 %}
+                        <tr>
+                            <td>{{ p.nume }} <small class="text-muted">(felul 1)</small></td>
+                            <td><input type="number" name="qty_{{ p.pk }}"
+                                       class="form-control form-control-sm text-center"
+                                       min="0" value="{{ firma.angajati.all|length|default:1 }}"></td>
+                        </tr>
+                        {% endfor %}
+                        {% for p in felul_2 %}
+                        <tr>
+                            <td>{{ p.nume }} <small class="text-muted">(felul 2)</small></td>
+                            <td><input type="number" name="qty_{{ p.pk }}"
+                                       class="form-control form-control-sm text-center"
+                                       min="0" value="0"></td>
+                        </tr>
+                        {% endfor %}
+                        {% for p in salate_plan %}
+                        <tr>
+                            <td>{{ p.nume }} <small class="text-muted">(salată)</small></td>
+                            <td><input type="number" name="qty_{{ p.pk }}"
+                                       class="form-control form-control-sm text-center"
+                                       min="0" value="{{ firma.angajati.all|length|default:1 }}"></td>
+                        </tr>
+                        {% endfor %}
+                        {% if not felul_1 and not felul_2 and not salate_plan %}
+                        <tr><td colspan="2" class="text-muted small">
+                            ⚠️ Prânzul nu este planificat pentru această dată.
+                        </td></tr>
+                        {% endif %}
+                    {% endif %}
+                </tbody>
+            </table>
+
+            {% endif %}{# end special/non-special #}
+
+            {% if firma.tip_firma == 'special' %}
+            <button type="submit" class="btn btn-success btn-sm w-100"
+                    onclick="return submitSpForm({{ firma.pk }})">
+                <i class="bi bi-rocket-takeoff"></i> Lansează comandă
+            </button>
+            {% else %}
+            <button type="submit" class="btn btn-success btn-sm w-100">
+                <i class="bi bi-rocket-takeoff"></i> Lansează comandă
+            </button>
+            {% endif %}
+        </form>
+        {% endif %}
+        {% endwith %}
+    </div>
+</div>
+{% endfor %}
+{% endif %}
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- TAB: CONFIRMARE PREZENȚĂ -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+{% elif tab == 'prezenta' %}
+
+<div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
+    <h6 class="mb-0 text-muted">
+        Confirmare pentru <strong class="text-white">azi, {{ data_sel|date:'d.m.Y' }}</strong>
+    </h6>
+    {% if total_rez %}
+    <span class="badge bg-success">✅ {{ total_rez }} porții rezervate total</span>
+    {% endif %}
+    <span class="ms-auto small text-muted">
+        <i class="bi bi-info-circle"></i>
+        Rezervarea se actualizează automat la adăugare / concediu angajat.
+        Poți suprascrie manual pentru absențe punctuale.
+    </span>
+</div>
+
+{% if not firme_ghiseu %}
+<div class="alert alert-info">Nu există firme active cu servire la ghișeu.</div>
+{% else %}
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th class="ps-3">Firmă</th>
+                    <th>Contract</th>
+                    <th class="text-center">Angajați activi</th>
+                    <th class="text-center">Rezervat azi</th>
+                    <th style="width:180px">Ajustare manuală</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for firma in firme_ghiseu %}
+                {% with activi=firma.angajati.all|length %}
+                <tr>
+                    <td class="ps-3 fw-semibold">
+                        {% if firma.tip_firma == 'ghiseu_livrare' %}🚚+🏪{% else %}🏪{% endif %}
+                        {{ firma.nume_firma }}
+                    </td>
+                    <td class="small text-muted">
+                        {% for cod, label in TIPURI_CONTRACT %}
+                        {% if cod == firma.tip_contract %}{{ label }}{% endif %}
+                        {% endfor %}
+                    </td>
+                    <td class="text-center fw-semibold">{{ activi }}</td>
+                    <td class="text-center">
+                        {% if firma.pk in rezervari %}
+                            {% for fid, cant in rezervari.items %}{% if fid == firma.pk %}
+                            <span class="badge {% if cant == activi %}bg-success{% else %}bg-warning text-dark{% endif %}">
+                                {{ cant }}{% if cant != activi %} <i class="bi bi-pencil-fill" title="Ajustat manual"></i>{% endif %}
+                            </span>
+                            {% endif %}{% endfor %}
+                        {% else %}
+                            <span class="text-muted small">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <form method="post" action="{% url 'manager:firme_rezervare_salveaza' %}"
+                              class="d-flex gap-1 align-items-center">
+                            {% csrf_token %}
+                            <input type="hidden" name="firma_id" value="{{ firma.pk }}">
+                            <input type="number" name="cantitate"
+                                   class="form-control form-control-sm text-center"
+                                   style="width:70px" min="0"
+                                   value="{% if firma.pk in rezervari %}{% for fid, cant in rezervari.items %}{% if fid == firma.pk %}{{ cant }}{% endif %}{% endfor %}{% else %}{{ activi }}{% endif %}">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary"
+                                    title="Salvează ajustare manuală">
+                                <i class="bi bi-save"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endwith %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- TAB: RAPORT SERVIRI -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+{% elif tab == 'raport' %}
+
+<div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
+    <span class="fw-semibold">Data raport:</span>
+    <input type="date" class="form-control form-control-sm" style="width:160px"
+           value="{{ raport_data|date:'Y-m-d' }}"
+           onchange="location.href='?tab=raport&raport_data='+this.value">
+    <a href="{% url 'manager:firme_raport_export' %}?data={{ raport_data|date:'Y-m-d' }}"
+       class="btn btn-sm btn-outline-success ms-auto">
+        <i class="bi bi-file-earmark-excel"></i> Export Excel
+    </a>
+</div>
+
+{% if not raport %}
+<div class="alert alert-secondary">
+    <i class="bi bi-clock"></i> Nu există serviri înregistrate pentru {{ raport_data|date:'d.m.Y' }}.
+</div>
+{% else %}
+
+{% for firma_data in raport %}
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-header py-2 fw-semibold">
+        🏢 {{ firma_data.nume_firma }}
+        <span class="badge bg-secondary ms-1">{{ firma_data.angajati|length }} serviți</span>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-sm mb-0 align-middle small">
+            <thead>
+                <tr>
+                    <th class="ps-3">Angajat</th>
+                    <th>Produse</th>
+                    <th class="text-center" style="width:100px">Tip</th>
+                    <th class="text-center" style="width:80px">Ora</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ang in firma_data.angajati %}
+                <tr>
+                    <td class="ps-3">{{ ang.nume_angajat }}</td>
+                    <td class="text-muted">{{ ang.produse }}</td>
+                    <td class="text-center">
+                        {% if ang.tip_ridicare == 'pachet' %}📦 Pachet
+                        {% else %}🍽️ La masă{% endif %}
+                    </td>
+                    <td class="text-center">
+                        {{ ang.ora_servire|default:'—'|stringformat:'s'|slice:':5' }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endfor %}
+{% endif %}
+
+{% endif %} {# end tab switch #}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const spCarts = {};  // { firma_id: [{pk, nume, pret, cantitate}] }
+
+function adaugaSpItem(fid, cod) {
+    const sel   = document.getElementById('selSp_' + cod + '_' + fid);
+    const qtyEl = document.getElementById('qtySp_' + cod + '_' + fid);
+    if (!sel || !sel.value) { if (sel) sel.focus(); return; }
+    const opt  = sel.options[sel.selectedIndex];
+    const pk   = parseInt(sel.value);
+    const qty  = parseInt(qtyEl ? qtyEl.value : 1) || 1;
+    const pret = parseFloat(opt.dataset.pret) || 0;
+    const nume = opt.dataset.nume;
+
+    if (!spCarts[fid]) spCarts[fid] = [];
+    const existing = spCarts[fid].find(i => i.pk === pk);
+    if (existing) {
+        existing.cantitate += qty;
+    } else {
+        spCarts[fid].push({ pk, nume, pret, cantitate: qty });
+    }
+    sel.value = '';
+    renderSpCart(fid);
+}
+
+function removeSpItem(fid, pk) {
+    if (spCarts[fid]) spCarts[fid] = spCarts[fid].filter(i => i.pk !== pk);
+    renderSpCart(fid);
+}
+
+function renderSpCart(fid) {
+    const cart     = spCarts[fid] || [];
+    const container = document.getElementById('spCart_' + fid);
+    const golMsg   = document.getElementById('spCartGol_' + fid);
+    const totalEl  = document.getElementById('spTotal_' + fid);
+
+    if (!cart.length) {
+        container.innerHTML = '';
+        if (golMsg)  golMsg.style.display  = '';
+        if (totalEl) totalEl.textContent = '0.00 L';
+        return;
+    }
+    if (golMsg) golMsg.style.display = 'none';
+
+    let total = 0;
+    container.innerHTML = cart.map(item => {
+        const sub = item.pret * item.cantitate;
+        total += sub;
+        return `
+        <div class="d-flex justify-content-between align-items-center py-1 border-bottom small">
+            <span><strong>${item.cantitate}×</strong> ${item.nume}</span>
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-success">${sub.toFixed(2)} L</span>
+                <button type="button" class="btn py-0 px-1 btn-outline-danger"
+                        style="font-size:.75rem"
+                        onclick="removeSpItem(${fid}, ${item.pk})">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+        </div>`;
+    }).join('');
+    if (totalEl) totalEl.textContent = total.toFixed(2) + ' L';
+}
+
+function submitSpForm(fid) {
+    const cart = spCarts[fid] || [];
+    if (!cart.length) {
+        alert('Adaugă cel puțin un produs în coș!');
+        return false;
+    }
+    const form = document.getElementById('formLansare_' + fid);
+    cart.forEach(item => {
+        const inp = document.createElement('input');
+        inp.type  = 'hidden';
+        inp.name  = 'qty_' + item.pk;
+        inp.value = item.cantitate;
+        form.appendChild(inp);
+    });
+    return true;
+}
+
+</script>
+{% endblock %}

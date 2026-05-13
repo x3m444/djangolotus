@@ -1,0 +1,613 @@
+{% extends 'base/base.html' %}
+{% block title %}Bucătărie — Lotus{% endblock %}
+
+{% block extra_css %}
+<style>
+    .produs-card        { border-left: 4px solid var(--bs-primary); border-radius: .4rem; }
+    .produs-card.gata   { border-left-color: var(--bs-success); background-color: rgba(var(--bs-success-rgb),.05); }
+    .comanda-card       { border-left: 4px solid var(--bs-primary); border-radius: .4rem; }
+    .comanda-card.gata  { border-left-color: var(--bs-success); background-color: rgba(var(--bs-success-rgb),.05); }
+    .comanda-card.firma { border-left-color: var(--bs-purple); }
+    .progress-thin      { height: 6px; border-radius: 3px; }
+    .tbl-sm td, .tbl-sm th { padding: .3rem .55rem; font-size: .84rem; }
+    .qty-badge { font-size: 1.4rem; font-weight: 700; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-fire text-danger"></i> Bucătărie</h4>
+    <div class="d-flex align-items-center gap-2">
+        <div class="btn-group btn-group-sm" role="group" aria-label="Plan zi">
+            <a href="?set_tip_plan=pranz"
+               class="btn {% if tip_plan == 'pranz' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                <i class="bi bi-sun-fill"></i> Prânz
+            </a>
+            <a href="?set_tip_plan=cina"
+               class="btn {% if tip_plan == 'cina' %}btn-warning text-dark{% else %}btn-outline-secondary{% endif %}">
+                <i class="bi bi-moon-fill"></i> Cină
+            </a>
+        </div>
+        <span class="badge bg-secondary">{{ azi|date:"d.m.Y" }}</span>
+    </div>
+</div>
+
+<ul class="nav nav-tabs mb-4" id="tabBucatarie">
+    <li class="nav-item">
+        <a class="nav-link {% if not request.GET.tab or request.GET.tab == 'lot' %}active{% endif %}"
+           href="?tab=lot">
+            <i class="bi bi-fire"></i> Gătire
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if request.GET.tab == 'impachetare' %}active{% endif %}"
+           href="?tab=impachetare">
+            <i class="bi bi-box-seam"></i> Împachetare
+            {% with nr_gata=comenzi_ambalare|length %}
+            {% if nr_gata %}<span class="badge bg-primary ms-1">{{ nr_gata }}</span>{% endif %}
+            {% endwith %}
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if request.GET.tab == 'buffer' %}active{% endif %}"
+           href="?tab=buffer">
+            <i class="bi bi-layers"></i> Buffer
+            {% if buffer %}<span class="badge bg-success ms-1">{{ buffer|length }}</span>{% endif %}
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if request.GET.tab == 'necesar' %}active{% endif %}"
+           href="?tab=necesar">
+            <i class="bi bi-cart3"></i> Necesar
+            {% if nr_necesar_total %}
+            <span class="badge {% if nr_necesar_primit == nr_necesar_total %}bg-success{% else %}bg-warning text-dark{% endif %} ms-1">
+                {{ nr_necesar_primit }}/{{ nr_necesar_total }}
+            </span>
+            {% endif %}
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if request.GET.tab == 'stoc' %}active{% endif %}"
+           href="?tab=stoc">
+            <i class="bi bi-exclamation-triangle"></i> Nevândut
+        </a>
+    </li>
+</ul>
+
+
+{# ══════════════ TAB GĂTIRE ══════════════ #}
+{% if not request.GET.tab or request.GET.tab == 'lot' %}
+
+{% if produse_lot %}
+<p class="text-muted small mb-3">
+    <i class="bi bi-info-circle"></i>
+    {{ produse_lot|length }} produs(e) în producție azi.
+    Marcați fiecare produs ca gătit după ce întreaga cantitate e finalizată.
+</p>
+<div class="row g-3">
+{% for p in produse_lot %}
+<div class="col-12 col-md-6 col-lg-4">
+    <div class="card produs-card {% if p.toate_gata %}gata{% endif %} p-3 h-100">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+                <div class="fw-semibold">{{ p.nume_produs }}</div>
+                <div class="small text-muted">
+                    {% if p.toate_gata %}
+                        <span class="text-success">✓ Toate {{ p.gatit }} porții gătite</span>
+                    {% else %}
+                        De gătit: <strong class="text-primary">{{ p.nou }}</strong>
+                        &nbsp;|&nbsp; Gata: {{ p.gatit }}
+                        &nbsp;|&nbsp; Total: {{ p.total }}
+                    {% endif %}
+                </div>
+            </div>
+            <span class="qty-badge {% if p.toate_gata %}text-success{% else %}text-primary{% endif %}">
+                {{ p.total }}
+            </span>
+        </div>
+
+        {% if not p.toate_gata %}
+        <div class="progress progress-thin mb-3">
+            {% widthratio p.gatit p.total 100 as pct %}
+            <div class="progress-bar bg-primary" style="width:{{ pct }}%"></div>
+        </div>
+        {% endif %}
+
+        {% if p.toate_gata %}
+        <div class="d-flex gap-2">
+            <span class="badge bg-success flex-grow-1 py-2">
+                <i class="bi bi-check-circle"></i> Gătit
+            </span>
+            <form method="post" action="{% url 'bucatarie:gatit_batch_reset' %}">
+                {% csrf_token %}
+                <input type="hidden" name="nume_produs" value="{{ p.nume_produs }}">
+                <button class="btn btn-sm btn-outline-secondary py-1" type="submit"
+                        title="Resetează la 'nou'">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                </button>
+            </form>
+        </div>
+        {% else %}
+        <form method="post" action="{% url 'bucatarie:gatit_batch' %}">
+            {% csrf_token %}
+            <input type="hidden" name="nume_produs" value="{{ p.nume_produs }}">
+            <button class="btn btn-primary btn-sm w-100" type="submit">
+                <i class="bi bi-check2-all"></i> Gătit — toate {{ p.nou }} porții
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endfor %}
+</div>
+
+{% else %}
+<div class="alert alert-secondary">
+    <i class="bi bi-info-circle"></i> Niciun lot lansat pentru azi.
+</div>
+{% endif %}
+
+
+{# ══════════════ TAB ÎMPACHETARE ══════════════ #}
+{% elif request.GET.tab == 'impachetare' %}
+
+{# — Loturi eveniment — #}
+{% if loturi_ev_ambalare %}
+<h6 class="fw-semibold mb-3">
+    <i class="bi bi-calendar-event text-info"></i> Loturi Eveniment
+</h6>
+<div class="d-flex flex-column gap-2 mb-4">
+{% for lot in loturi_ev_ambalare %}
+<div class="card comanda-card {% if lot.toate_gata %}gata{% endif %} p-3"
+     style="border-left-color: {% if lot.tip_ridicare == 'pachet' %}var(--bs-primary){% else %}var(--bs-success){% endif %}">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+        <div>
+            <span class="fw-semibold">{{ lot.observatii|default:"Lot eveniment" }}</span>
+            <span class="ms-2 badge {% if lot.tip_ridicare == 'pachet' %}bg-primary{% else %}bg-success{% endif %}">
+                {% if lot.tip_ridicare == 'pachet' %}
+                    <i class="bi bi-box-seam"></i> La pachet
+                {% else %}
+                    <i class="bi bi-cup-hot"></i> La masă
+                {% endif %}
+            </span>
+            {% if lot.ora_livrare_estimata %}
+            <span class="badge bg-dark ms-1"><i class="bi bi-clock"></i> {{ lot.ora_livrare_estimata|time:"H:i" }}</span>
+            {% endif %}
+            <div class="small text-muted mt-1">
+                {% for l in lot.linii.all %}
+                <span class="badge {% if l.status == 'gatit' %}bg-success{% else %}bg-secondary{% endif %} me-1">
+                    {{ l.cantitate }}× {{ l.nume_produs }}
+                </span>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="small text-muted">{{ lot.nr_gatite }}/{{ lot.nr_total }} gătite</span>
+            {% if lot.status == 'pregatit' %}
+            <span class="badge bg-success"><i class="bi bi-check-circle"></i>
+                {% if lot.tip_ridicare == 'pachet' %}Ambalat{% else %}Pregătit{% endif %}
+            </span>
+            {% elif lot.toate_gata %}
+            <form method="post" action="{% url 'bucatarie:impachetare_comanda' lot.pk %}">
+                {% csrf_token %}
+                <button class="btn btn-sm {% if lot.tip_ridicare == 'pachet' %}btn-primary{% else %}btn-success{% endif %}">
+                    {% if lot.tip_ridicare == 'pachet' %}
+                        <i class="bi bi-box-seam"></i> Ambalat
+                    {% else %}
+                        <i class="bi bi-check2-all"></i> Pregătit
+                    {% endif %}
+                </button>
+            </form>
+            {% else %}
+            <span class="badge bg-secondary"><i class="bi bi-hourglass-split"></i> Așteaptă gătire</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endfor %}
+</div>
+{% endif %}
+
+{# — Pachete firme — #}
+{% if pachete_firme %}
+<h6 class="fw-semibold mb-3"><i class="bi bi-building" style="color:var(--bs-purple)"></i> Pachete Firme</h6>
+<div class="d-flex flex-column gap-2 mb-4">
+{% for pct in pachete_firme %}
+<div class="card comanda-card firma p-2">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <span class="fw-semibold small">{{ pct.nume_firma }}</span>
+            {% if pct.nume_angajat %}
+            <span class="text-muted small ms-2"><i class="bi bi-person"></i> {{ pct.nume_angajat }}</span>
+            {% endif %}
+            <div class="text-muted small">{{ pct.produse }}</div>
+        </div>
+        {% if pct.status_pachet == 'ambalat' %}
+        <span class="badge bg-success"><i class="bi bi-check-circle"></i> Ambalat</span>
+        {% else %}
+        <form method="post" action="{% url 'bucatarie:pachet_firma_ambalat' pct.id %}">
+            {% csrf_token %}
+            <button class="btn btn-sm btn-primary">
+                <i class="bi bi-box-seam"></i> Ambalat
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endfor %}
+</div>
+{% endif %}
+
+{# — Comenzi individuale (recepție + ghișeu special) — #}
+<h6 class="fw-semibold mb-3"><i class="bi bi-list-check text-primary"></i> Comenzi Individuale</h6>
+
+{% if comenzi_ambalare %}
+<p class="text-muted small mb-3">
+    {% with total=comenzi_ambalare|length %}
+    {{ total }} comenzi
+    {% endwith %}
+    — buton activ doar când toate produsele sunt gătite.
+</p>
+<div class="d-flex flex-column gap-2">
+{% for c in comenzi_ambalare %}
+<div class="card comanda-card {% if c.toate_gata %}gata{% endif %} p-3">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+        <div>
+            <span class="fw-bold me-1">#{{ c.id }}</span>
+            {% if c.client_id == 998 %}
+            <span class="badge bg-primary small"><i class="bi bi-stars"></i> Ghișeu Special</span>
+            {% if c.tip_ridicare %}
+            <span class="badge bg-outline-secondary border small text-secondary ms-1">
+                {% if c.tip_ridicare == 'la_masa' %}La masă{% else %}La pachet{% endif %}
+            </span>
+            {% endif %}
+            {% else %}
+            <span class="small">{{ c.client.nume_client }}</span>
+            {% if c.ora_livrare_estimata %}
+            <span class="badge bg-dark ms-2 small">
+                <i class="bi bi-clock"></i> {{ c.ora_livrare_estimata|time:"H:i" }}
+            </span>
+            {% endif %}
+            {% endif %}
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="small text-muted">{{ c.nr_gatite }}/{{ c.nr_total }} gătite</span>
+            {% if c.toate_gata %}
+                <span class="badge bg-success">🟢 Gata de ambalat</span>
+                <form method="post" action="{% url 'bucatarie:impachetare_comanda' c.pk %}">
+                    {% csrf_token %}
+                    <button class="btn btn-sm btn-success">
+                        <i class="bi bi-box-seam"></i> Ambalat
+                    </button>
+                </form>
+            {% else %}
+                <span class="badge bg-secondary">⏳ Așteaptă</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-1">
+    {% for l in c.linii.all %}
+        <span class="badge {% if l.status == 'gatit' %}bg-success{% else %}bg-secondary{% endif %} small">
+            {{ l.cantitate }}× {{ l.nume_produs }}
+            {% if l.status != 'gatit' %}<i class="bi bi-hourglass-split ms-1"></i>{% endif %}
+        </span>
+    {% endfor %}
+    </div>
+</div>
+{% endfor %}
+</div>
+
+{% else %}
+<div class="alert alert-success">
+    <i class="bi bi-check-circle"></i> Nicio comandă în așteptare — toate au fost ambalate!
+</div>
+{% endif %}
+
+
+{# ══════════════ TAB BUFFER ══════════════ #}
+{% elif request.GET.tab == 'buffer' %}
+
+{% if tip_plan == 'cina' %}
+<div class="alert alert-warning py-2 d-flex align-items-center gap-2 mb-3">
+    <i class="bi bi-moon-fill"></i>
+    <span>Mod <strong>Cină</strong> activ — buffer-ul și adăugarea se aplică planului de cină.</span>
+</div>
+{% endif %}
+
+<div class="row g-4">
+
+{# ── Coloana stânga: La masă (componente individuale) ── #}
+<div class="col-12 col-lg-6">
+    <h6 class="fw-semibold mb-3"><i class="bi bi-cup-hot"></i> Servire la masă</h6>
+    <p class="text-muted small mb-3">Porții puse în farfurii / recipiente, gata de servit la masă.</p>
+
+    {% if buffer_masa %}
+    <div class="table-responsive mb-3">
+        <table class="table table-sm tbl-sm align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Componentă</th>
+                    <th class="text-center">Gătite</th>
+                    <th class="text-center">În buffer</th>
+                    <th class="text-center">Servite</th>
+                    <th class="text-center">Disponibile</th>
+                    <th class="text-center">Pot adăuga</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for b in buffer_masa %}
+            <tr>
+                <td class="small">{{ b.label }}</td>
+                <td class="text-center text-muted">{{ b.gatit|default:"—" }}</td>
+                <td class="text-center">{{ b.cantitate|default:"—" }}</td>
+                <td class="text-center text-muted">{{ b.distribuit }}</td>
+                <td class="text-center">
+                    {% if b.disponibil > 0 %}
+                        <span class="badge bg-success">{{ b.disponibil }}</span>
+                    {% elif b.cantitate > 0 %}
+                        <span class="badge bg-secondary">0</span>
+                    {% else %}
+                        <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+                <td class="text-center">
+                    {% if b.pot_adauga > 0 %}
+                        <span class="badge bg-warning text-dark">{{ b.pot_adauga }}</span>
+                    {% else %}
+                        <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <form method="post" action="{% url 'bucatarie:buffer_add' %}" class="row g-2 align-items-end">
+        {% csrf_token %}
+        <input type="hidden" name="tip_servire" value="masa">
+        <div class="col">
+            <select name="componenta" class="form-select form-select-sm">
+                {% for c in componente_def %}
+                <option value="{{ c.key }}">{{ c.label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-auto">
+            <input type="number" name="cantitate" class="form-control form-control-sm"
+                   min="1" max="500" value="1" style="width:75px">
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-success btn-sm" type="submit">
+                <i class="bi bi-plus-lg"></i> Adaugă
+            </button>
+        </div>
+    </form>
+</div>
+
+{# ── Coloana dreapta: La pachet (meniuri compuse ambalate) ── #}
+<div class="col-12 col-lg-6">
+    <h6 class="fw-semibold mb-3"><i class="bi bi-box-seam"></i> Meniuri ambalate (pachet)</h6>
+    <p class="text-muted small mb-3">Meniuri complete ambalate, gata de ridicat.</p>
+
+    {% if buffer_pachet %}
+    <div class="table-responsive mb-3">
+        <table class="table table-sm tbl-sm align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Meniu</th>
+                    <th class="text-center">Gătite</th>
+                    <th class="text-center">Ambalate</th>
+                    <th class="text-center">Ridicate</th>
+                    <th class="text-center">Disponibile</th>
+                    <th class="text-center">Pot ambala</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for b in buffer_pachet %}
+            <tr>
+                <td class="small">{{ b.label }}</td>
+                <td class="text-center text-muted">{{ b.gatit|default:"—" }}</td>
+                <td class="text-center">{{ b.cantitate|default:"—" }}</td>
+                <td class="text-center text-muted">{{ b.distribuit }}</td>
+                <td class="text-center">
+                    {% if b.disponibil > 0 %}
+                        <span class="badge bg-primary">{{ b.disponibil }}</span>
+                    {% elif b.cantitate > 0 %}
+                        <span class="badge bg-secondary">0</span>
+                    {% else %}
+                        <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+                <td class="text-center">
+                    {% if b.pot_adauga > 0 %}
+                        <span class="badge bg-warning text-dark">{{ b.pot_adauga }}</span>
+                    {% else %}
+                        <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <form method="post" action="{% url 'bucatarie:buffer_add' %}" class="row g-2 align-items-end">
+        {% csrf_token %}
+        <input type="hidden" name="tip_servire" value="pachet">
+        <div class="col">
+            <select name="componenta" class="form-select form-select-sm">
+                {% for m in meniuri_def %}
+                <option value="{{ m.key }}">{{ m.label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-auto">
+            <input type="number" name="cantitate" class="form-control form-control-sm"
+                   min="1" max="500" value="1" style="width:75px">
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-primary btn-sm" type="submit">
+                <i class="bi bi-plus-lg"></i> Adaugă
+            </button>
+        </div>
+    </form>
+</div>
+
+</div>
+
+
+{# ══════════════ TAB NECESAR ══════════════ #}
+{% elif request.GET.tab == 'necesar' %}
+
+{% if not necesar_grouped %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i>
+    Niciun necesar calculat pentru astăzi. Lansați un lot de producție pentru a genera lista de ingrediente.
+</div>
+{% else %}
+
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+    <div>
+        <span class="fw-semibold">
+            <i class="bi bi-cart3"></i> Lista de ingrediente — {{ azi|date:"d.m.Y" }}
+        </span>
+        <span class="text-muted small ms-2">
+            {{ nr_necesar_primit }}/{{ nr_necesar_total }} primite
+        </span>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        {% if nr_necesar_primit < nr_necesar_total %}
+        <span class="badge bg-warning text-dark">{{ nr_necesar_total }} ingrediente de primit</span>
+        {% else %}
+        <span class="badge bg-success"><i class="bi bi-check-all"></i> Toate primite</span>
+        {% endif %}
+        <a href="{% url 'bucatarie:necesar_export' %}" class="btn btn-outline-success btn-sm">
+            <i class="bi bi-file-earmark-excel"></i> Export Excel
+        </a>
+    </div>
+</div>
+
+{% if nr_necesar_total > 0 %}
+<div class="progress mb-3" style="height:8px;">
+    <div class="progress-bar bg-success" style="width:{% widthratio nr_necesar_primit nr_necesar_total 100 %}%"></div>
+</div>
+{% endif %}
+
+{% for cat_label, linii in necesar_grouped.items %}
+<div class="card shadow-sm mb-3">
+    <div class="card-header py-2 fw-semibold d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-tag"></i> {{ cat_label }}</span>
+        <span class="badge bg-secondary">{{ linii|length }}</span>
+    </div>
+    <table class="table table-sm table-hover mb-0 align-middle">
+        <thead class="table-dark">
+            <tr>
+                <th>Ingredient</th>
+                <th class="text-center" style="width:130px">Cantitate necesară</th>
+                <th style="width:70px"></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for n in linii %}
+        <tr class="{% if n.primit %}table-success{% endif %}">
+            <td class="fw-semibold small">
+                {% if n.primit %}<s class="text-muted">{% endif %}
+                {{ n.ingredient.nume }}
+                {% if n.primit %}</s>{% endif %}
+            </td>
+            <td class="text-center fw-bold">
+                {% if n.ingredient.unitate == 'kg' %}
+                    {% if n.cantitate_necesara < 1 %}
+                        <span class="text-success">{% widthratio n.cantitate_necesara 0.001 1 %} g</span>
+                    {% else %}
+                        <span class="text-primary">{{ n.cantitate_necesara|floatformat:3 }} kg</span>
+                    {% endif %}
+                {% elif n.ingredient.unitate == 'l' %}
+                    {% if n.cantitate_necesara < 1 %}
+                        <span class="text-success">{% widthratio n.cantitate_necesara 0.001 1 %} ml</span>
+                    {% else %}
+                        <span class="text-primary">{{ n.cantitate_necesara|floatformat:3 }} l</span>
+                    {% endif %}
+                {% else %}
+                    <span class="text-primary">{{ n.cantitate_necesara|floatformat:"-4" }} {{ n.ingredient.unitate }}</span>
+                {% endif %}
+            </td>
+            <td class="text-center">
+                <form method="post" action="{% url 'bucatarie:necesar_primit' n.pk %}">
+                    {% csrf_token %}
+                    <button class="btn btn-sm py-0 px-2 {% if n.primit %}btn-success{% else %}btn-outline-secondary{% endif %}"
+                            title="{% if n.primit %}Anulează bifarea{% else %}Marchează primit{% endif %}">
+                        <i class="bi {% if n.primit %}bi-check-circle-fill{% else %}bi-circle{% endif %}"></i>
+                    </button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endfor %}
+
+{% endif %}
+
+
+{# ══════════════ TAB NEVÂNDUT ══════════════ #}
+{% elif request.GET.tab == 'stoc' %}
+
+<p class="text-muted small mb-3">
+    <i class="bi bi-info-circle"></i>
+    Cantitățile rămase sunt calculate automat: <strong>Gătit − Servit ghișeu − Livrat</strong>.
+    Verificați și corectați dacă e cazul, apoi salvați.
+</p>
+
+{% if stoc_nevandut %}
+<form method="post" action="{% url 'bucatarie:stoc_declara' %}">
+    {% csrf_token %}
+    <div class="row g-3 mb-4">
+    {% for p in stoc_nevandut %}
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card p-3">
+            <div class="fw-semibold mb-2">{{ p.nume }}</div>
+            <div class="d-flex justify-content-between small text-muted mb-2">
+                <span>Gătit: <strong>{{ p.gatit }}</strong></span>
+                <span>Servit: {{ p.servit }}</span>
+                <span>Livrat: {{ p.livrat }}</span>
+            </div>
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <span class="small text-muted text-nowrap" style="min-width:70px">Pierderi:</span>
+                <input type="number" name="pierderi_{{ p.nume }}"
+                       class="form-control form-control-sm"
+                       min="0" max="{{ p.gatit }}" value="{{ p.pierderi }}"
+                       placeholder="0">
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="small text-muted text-nowrap" style="min-width:70px">Nevândut:</span>
+                <input type="number" name="stoc_{{ p.nume }}"
+                       class="form-control form-control-sm"
+                       min="0" max="{{ p.gatit }}" value="{{ p.declarat }}">
+            </div>
+            {% if p.ramas == 0 and p.pierderi == 0 %}
+            <div class="small text-success mt-1"><i class="bi bi-check-circle"></i> Tot distribuit</div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+    </div>
+    <button type="submit" class="btn btn-primary">
+        <i class="bi bi-save"></i> Salvează stoc nevândut
+    </button>
+</form>
+{% else %}
+<div class="alert alert-secondary">
+    <i class="bi bi-info-circle"></i> Niciun produs gătit azi — nimic de declarat.
+</div>
+{% endif %}
+
+{% endif %}
+
+{% endblock %}
