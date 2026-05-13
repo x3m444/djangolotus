@@ -11,7 +11,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN python manage.py collectstatic --noinput
+RUN SECRET_KEY=build-dummy DB_NAME=x DB_USER=x DB_PASS=x DB_HOST=x DB_PORT=5432 python manage.py collectstatic --noinput
 
 EXPOSE 8000
 
