@@ -329,6 +329,12 @@ INSERT INTO auth_group (name) VALUES
     ('livrator')
 ON CONFLICT (name) DO NOTHING;
 
+-- Utilizator admin implicit — parolă: admin123
+-- !! SCHIMBĂ PAROLA după prima autentificare din Admin → Utilizatori !!
+INSERT INTO utilizatori (username, password_hash, rol, activ)
+VALUES ('admin', '$2b$12$gfSMmq75XK8WNmTw6aIv5.UrlWQy.3gogvyQB1cIfQkUIK1MuR8Am', 'admin', TRUE)
+ON CONFLICT (username) DO NOTHING;
+
 -- =============================================================================
 --  NOTE POST-INSTALARE
 -- =============================================================================
