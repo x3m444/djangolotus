@@ -1,8 +1,20 @@
 services:
   web:
     build: .
-    ports:
-      - "8000:8000"
+    container_name: lotus_app
+    restart: unless-stopped
     env_file:
       - .env
-    restart: unless-stopped
+    networks:
+      - traefik
+    labels:
+      - traefik.enable=true
+      - "traefik.http.routers.lotus.rule=Host(`lotus.incercari.duckdns.org`)"
+      - traefik.http.routers.lotus.entrypoints=websecure
+      - traefik.http.routers.lotus.tls.certresolver=myresolver
+      - traefik.http.services.lotus.loadbalancer.server.port=8000
+
+networks:
+  traefik:
+    external: true
+    name: traefik
